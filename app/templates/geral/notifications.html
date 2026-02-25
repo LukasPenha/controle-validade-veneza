@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+
+{% block title %}Notificações{% endblock %}
+
+{% block content %}
+<style>
+    /* Estilo da Linha do Tempo (Timeline) */
+    .timeline-container {
+        position: relative;
+        padding-left: 20px;
+    }
+    
+    /* Linha vertical cinza */
+    .timeline-container::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 24px; /* Posição da linha */
+        width: 2px;
+        background-color: #e9ecef;
+        z-index: 0;
+    }
+
+    .notification-item {
+        position: relative;
+        margin-bottom: 1.5rem;
+        z-index: 1; /* Fica acima da linha */
+        transition: transform 0.2s;
+    }
+
+    .notification-item:hover {
+        transform: translateX(5px);
+    }
+
+    /* O Círculo do Ícone */
+    .notification-icon-box {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #fff;
+        border: 2px solid #e9ecef;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        flex-shrink: 0;
+    }
+
+    /* Conteúdo do Card */
+    .notification-content {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1rem;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        border: 1px solid #f0f0f0;
+        width: 100%;
+        margin-left: 15px;
+        position: relative;
+    }
+
+    /* Seta do Card (Triângulo) */
+    .notification-content::before {
+        content: '';
+        position: absolute;
+        left: -8px;
+        top: 20px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        transform: rotate(45deg);
+        border-left: 1px solid #f0f0f0;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    /* Cores Específicas para Tipos de Notificação (Opcional - Lógica visual) */
+    .icon-info { color: #0d6efd; background-color: #f1f7ff; border-color: #cfe2ff; }
+    .icon-alert { color: #ffc107; background-color: #fff9e6; border-color: #fff3cd; }
+    .icon-success { color: #198754; background-color: #f0fdf4; border-color: #d1e7dd; }
+
+    .date-badge {
+        font-size: 0.75rem;
+        background-color: #f8f9fa;
+        color: #6c757d;
+        padding: 4px 10px;
+        border-radius: 20px;
+        border: 1px solid #dee2e6;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">Central de Notificações</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <span class="text-muted small">
+            <i class="bi bi-check-all"></i> Todas as notificações são marcadas como lidas ao abrir esta página.
+        </span>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        
+        {% if notificacoes %}
+            <div class="timeline-container py-3">
+                
+                {% for notificacao in notificacoes %}
+                <div class="d-flex notification-item">
+                    <div class="notification-icon-box {% if 'vencido' in notificacao.mensagem.lower() %}icon-alert{% elif 'rebaixa' in notificacao.mensagem.lower() %}icon-info{% else %}icon-success{% endif %}">
+                        {% if 'vencido' in notificacao.mensagem.lower() %}
+                            <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+                        {% elif 'rebaixa' in notificacao.mensagem.lower() %}
+                            <i class="bi bi-arrow-down-circle-fill fs-5"></i>
+                        {% else %}
+                            <i class="bi bi-bell-fill fs-5"></i>
+                        {% endif %}
+                    </div>
+
+                    <div class="notification-content">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h6 class="fw-bold mb-0 text-dark">Nova Atividade</h6>
+                            <span class="date-badge">
+                                <i class="bi bi-clock"></i> {{ notificacao.timestamp.strftime('%d/%m/%Y às %H:%M') }}
+                            </span>
+                        </div>
+                        <p class="text-secondary mb-0 mt-2">
+                            {{ notificacao.mensagem }}
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+
+            </div>
+
+            <div class="text-center mt-4 mb-5">
+                <span class="text-muted small bg-white px-3 position-relative" style="z-index: 2;">Fim das notificações recentes</span>
+                <hr style="margin-top: -10px; z-index: 1;">
+            </div>
+
+        {% else %}
+            <div class="text-center py-5 my-5">
+                <div class="mb-3">
+                    <i class="bi bi-bell-slash text-muted opacity-25" style="font-size: 5rem;"></i>
+                </div>
+                <h4 class="text-muted">Tudo tranquilo por aqui!</h4>
+                <p class="text-muted small">Você não possui novas notificações no momento.</p>
+                <a href="{{ url_for('routes.index') }}" class="btn btn-outline-primary mt-3">
+                    <i class="bi bi-arrow-left"></i> Voltar ao Início
+                </a>
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+
+{% endblock %}

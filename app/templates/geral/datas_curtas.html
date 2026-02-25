@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% block title %}Marcar Datas Curtas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Marcar Produtos com Data Curta</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Buscar Produto no Estoque</h5>
+                <p class="card-text text-muted">
+                    Digite o nome, PLU ou código de barras do produto que você deseja marcar para que o gerente avalie a rebaixa. Apenas produtos ativos e não vencidos aparecerão na busca.
+                </p>
+                <div class="mb-3">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="productSearchInput" class="form-control" placeholder="Digite para buscar...">
+                    </div>
+                </div>
+                <div id="searchResultsContainer">
+                    </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/datas_curtas_search.js') }}"></script>
+{% endblock %}

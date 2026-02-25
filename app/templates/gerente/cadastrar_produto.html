@@ -1,0 +1,16 @@
+{% extends 'gerente/base_gerente.html' %}
+{% block title %}Cadastrar Produto{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        {% include 'partials/_product_form.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script defer src="{{ url_for('static', filename='js/zxing.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/product_scanner.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+{% endblock %}

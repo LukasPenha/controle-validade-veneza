@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Geral{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
+    <h1 class="h2">Visão Geral</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="text-muted">Bem-vindo, <strong>{{ current_user.username }}</strong></div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card card-stats border-left-primary h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total de Lojas</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_lojas|default('0') }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-shop fs-1 text-gray-300 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card card-stats border-left-success h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Usuários Ativos</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_usuarios|default('0') }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-people-fill fs-1 text-gray-300 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4 mb-4">
+        <div class="card card-stats border-left-warning h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Catálogo Master</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_catalogo|default('0') }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-box-seam fs-1 text-gray-300 opacity-25"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Acesso Rápido</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('routes.adicionar_catalogo') }}" class="btn btn-outline-primary text-start">
+                        <i class="bi bi-plus-circle me-2"></i> Cadastrar Novo Item no Catálogo
+                    </a>
+                    <a href="{{ url_for('routes.gerenciar_lojas') }}" class="btn btn-outline-dark text-start">
+                        <i class="bi bi-shop me-2"></i> Gerenciar Unidades
+                    </a>
+                    <a href="{{ url_for('routes.relatorio_gerente_geral') }}" class="btn btn-outline-success text-start">
+                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Extrair Relatórios Gerenciais
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-secondary">Status do Sistema</h6>
+            </div>
+            <div class="card-body">
+                <p>O sistema está operando normalmente com banco de dados na nuvem (Supabase).</p>
+                <hr>
+                <small class="text-muted">Último backup: Automático (Cloud)</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

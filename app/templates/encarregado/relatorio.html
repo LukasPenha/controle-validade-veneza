@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Relatórios do Setor{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Relatórios do Setor</h1>
+</div>
+<div class="card mb-4">
+    <div class="card-header">Gerar Relatório de Cadastros do Setor</div>
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('routes.gerar_relatorio_encarregado_pdf') }}" target="_blank">
+            <div class="row align-items-end g-3">
+                <div class="col-md-5"><label class="form-label">Data de Início</label><input type="date" name="data_inicio" class="form-control" required></div>
+                <div class="col-md-5"><label class="form-label">Data de Fim</label><input type="date" name="data_fim" class="form-control" required></div>
+                <div class="col-md-2 d-grid"><button type="submit" class="btn btn-success">Gerar</button></div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

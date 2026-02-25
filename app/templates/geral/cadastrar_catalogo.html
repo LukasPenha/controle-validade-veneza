@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Cadastrar Produto ao Catálogo{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Adicionar Novo Produto ao Catálogo</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-body">
+                <p class="card-text text-muted">
+                    Esta página serve para cadastrar um novo tipo de produto no sistema. Preencha as informações de identificação abaixo. A quantidade e a validade serão informadas na tela de "Datas Curtas".
+                </p>
+                <form method="POST" action="{{ url_for('routes.adicionar_catalogo') }}">
+                    <div class="mb-3">
+                        <label for="nome_produto" class="form-label">Nome do Produto</label>
+                        <input type="text" id="nome_produto" name="nome_produto" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="plu" class="form-label">PLU (Código Interno da Empresa)</label>
+                        <input type="text" id="plu" name="plu" class="form-control" required>
+                    </div>
+                    <hr>
+                    <p class="text-muted small">Você pode adicionar até 3 códigos de barras do fornecedor para este produto.</p>
+                    <div class="mb-2">
+                        <label for="barcode_1" class="form-label">Código de Barras 1</label>
+                        <input type="text" id="barcode_1" name="barcode_1" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                        <label for="barcode_2" class="form-label">Código de Barras 2</label>
+                        <input type="text" id="barcode_2" name="barcode_2" class="form-control">
+                    </div>
+                    <div class="mb-2">
+                        <label for="barcode_3" class="form-label">Código de Barras 3</label>
+                        <input type="text" id="barcode_3" name="barcode_3" class="form-control">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-3">Salvar no Catálogo</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

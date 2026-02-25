@@ -1,0 +1,23 @@
+@routes.route('/gerente-geral/dashboard')
+@login_required
+def dashboard_gerente_geral():
+    if current_user.role != 'gerente_geral': 
+        return redirect(url_for('routes.index'))
+    
+    # --- CÁLCULO DOS DADOS PARA O DASHBOARD ---
+    
+    # 1. Total de Lojas cadastradas
+    total_lojas = Loja.query.count()
+    
+    # 2. Total de Usuários (excluindo o próprio admin para não inflar o número)
+    total_usuarios = Usuario.query.filter(Usuario.role != 'gerente_geral').count()
+    
+    # 3. Total de Produtos no Catálogo Master
+    total_catalogo = ProdutoCatalogo.query.count()
+    
+    # Nota: O cálculo de 'total_alertas' foi removido conforme solicitado.
+
+    return render_template('geral/dashboard.html', 
+                           total_lojas=total_lojas, 
+                           total_usuarios=total_usuarios, 
+                           total_catalogo=total_catalogo)

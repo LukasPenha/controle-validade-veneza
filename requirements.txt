@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-Login
+Flask-Bcrypt
+ReportLab
+requests
+Flask-Mail
+Flask-APScheduler
+gunicorn
+psycopg2-binary
+python-dotenv
+waitress

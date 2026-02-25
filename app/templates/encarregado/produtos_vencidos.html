@@ -1,0 +1,45 @@
+{% extends 'encarregado/base_encarregado.html' %}
+{% block title %}Produtos Vencidos{% endblock %}
+
+{% block content %}
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5>Produtos Vencidos - Setor: {{ current_user.setor.nome }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome do Produto</th>
+                        <th>Data de Validade</th>
+                        <th>Dias Vencido</th>
+                        <th>Cadastrado Por</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    {% set dias_vencidos = (today - produto.validade).days %}
+                    <tr>
+                        <td>{{ produto.nome_produto }}</td>
+                        <td>{{ produto.validade.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ dias_vencidos }}</td>
+                        <td>{{ produto.criado_por.nome_display }}</td>
+                        <td class="text-center">
+                            <form action="{{ url_for('routes.excluir_produto', produto_id=produto.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Este item será excluído permanentemente. Deseja continuar?');">
+                                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Excluir</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Nenhum produto vencido encontrado no seu setor.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

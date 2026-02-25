@@ -1,0 +1,99 @@
+{% extends 'gerente_geral/base_gg.html' %}
+{% block title %}Gerenciar Catálogo de Produtos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Gerenciar Catálogo de Produtos</h1>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        Itens no Catálogo
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome do Produto</th>
+                        <th>PLU</th>
+                        <th>Códigos de Barras</th>
+                        <th class="text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in catalogo.items %}
+                    <tr>
+                        <td>{{ item.nome_produto }}</td>
+                        <td>{{ item.plu or 'N/A' }}</td>
+                        <td>
+                            {% if item.barcode_1 %}<span class="badge bg-secondary">{{ item.barcode_1 }}</span>{% endif %}
+                            {% if item.barcode_2 %}<span class="badge bg-secondary">{{ item.barcode_2 }}</span>{% endif %}
+                            {% if item.barcode_3 %}<span class="badge bg-secondary">{{ item.barcode_3 }}</span>{% endif %}
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ item.id }}"><i class="bi bi-pencil"></i> Editar</button>
+                            <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ item.id }}"><i class="bi bi-trash"></i> Excluir</button>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center">Nenhum item no catálogo.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not catalogo.has_prev %}disabled{% endif %}"><a class="page-link" href="{{ url_for('routes.gerenciar_catalogo', page=catalogo.prev_num) }}">Anterior</a></li>
+                {% for page_num in catalogo.iter_pages() %}
+                    <li class="page-item {% if page_num == catalogo.page %}active{% endif %}"><a class="page-link" href="{{ url_for('routes.gerenciar_catalogo', page=page_num) }}">{{ page_num }}</a></li>
+                {% endfor %}
+                <li class="page-item {% if not catalogo.has_next %}disabled{% endif %}"><a class="page-link" href="{{ url_for('routes.gerenciar_catalogo', page=catalogo.next_num) }}">Próximo</a></li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+{% for item in catalogo.items %}
+<div class="modal fade" id="editModal-{{ item.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Editar Item do Catálogo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('routes.editar_catalogo', item_id=item.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Nome do Produto</label><input type="text" name="nome_produto" class="form-control" value="{{ item.nome_produto }}" required></div>
+                    <div class="mb-2"><label class="form-label">PLU</label><input type="text" name="plu" class="form-control" value="{{ item.plu or '' }}"></div>
+                    <hr>
+                    <p class="text-muted small">Gerencie os códigos de barras associados a este produto.</p>
+                    <div class="mb-2"><label class="form-label">Código de Barras 1</label><input type="text" name="barcode_1" class="form-control" value="{{ item.barcode_1 or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Código de Barras 2</label><input type="text" name="barcode_2" class="form-control" value="{{ item.barcode_2 or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Código de Barras 3</label><input type="text" name="barcode_3" class="form-control" value="{{ item.barcode_3 or '' }}"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal-{{ item.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirmar Exclusão</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o item <strong>{{ item.nome_produto }}</strong> do catálogo?</p>
+                <p class="text-danger">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('routes.excluir_catalogo', item_id=item.id) }}" method="POST"><button type="submit" class="btn btn-danger">Excluir</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

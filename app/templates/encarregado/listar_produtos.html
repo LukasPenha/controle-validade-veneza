@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% block title %}Listar Produtos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Produtos Ativos - Setor: {{ current_user.setor.nome }}</h1>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form action="{{ url_for('routes.bulk_action') }}" method="POST" id="bulkActionForm">
+            <div class="row mb-3 g-2">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" id="searchInput" class="form-control" placeholder="Buscar por nome do produto...">
+                    </div>
+                </div>
+                <div class="col-md-6 d-flex justify-content-end">
+                    <div class="btn-group">
+                        <input type="hidden" name="action" id="actionInput">
+                        <button type="submit" class="btn btn-outline-danger" onclick="document.getElementById('actionInput').value='delete'; return confirm('Tem certeza que deseja excluir os itens selecionados?');">
+                            <i class="bi bi-trash"></i> <span class="d-none d-md-inline">Excluir Selecionados</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover table-responsive-stack align-middle" id="productsTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="5%"><input class="form-check-input" type="checkbox" id="selectAll"></th>
+                            <th>Nome do Produto</th>
+                            <th>Validade</th>
+                            <th>Dias Rest.</th>
+                            <th>Status</th>
+                            <th>Cadastrado Por</th>
+                            <th class="text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for produto in produtos.items %}
+                        {% set dias_restantes = (produto.validade - now.date()).days %}
+                        <tr class="{% if dias_restantes < 5 %}border-left-danger{% elif dias_restantes <= 10 %}border-left-warning{% elif dias_restantes > 19 %}border-left-success{% endif %}">
+                            
+                            <td data-label="Selecionar">
+                                <input class="form-check-input" type="checkbox" name="selected_ids" value="{{ produto.id }}">
+                            </td>
+                            
+                            <td data-label="Produto">
+                                <div class="fw-bold">{{ produto.nome_produto }}</div>
+                                <small class="text-muted d-md-none">PLU: {{ produto.plu }}</small>
+                            </td>
+                            
+                            <td data-label="Validade">
+                                {{ produto.validade.strftime('%d/%m/%Y') }}
+                            </td>
+                            
+                            <td data-label="Dias Restantes">
+                                {% if dias_restantes < 0 %}
+                                    <span class="badge bg-danger">Vencido</span>
+                                {% else %}
+                                    <span class="fw-bold {% if dias_restantes < 5 %}text-danger{% elif dias_restantes <= 10 %}text-warning{% else %}text-success{% endif %}">
+                                        {{ dias_restantes }} dias
+                                    </span>
+                                {% endif %}
+                            </td>
+                            
+                            <td data-label="Status">
+                                <span class="badge rounded-pill bg-secondary">{{ produto.status }}</span>
+                            </td>
+                            
+                            <td data-label="Cadastrado Por">
+                                {{ produto.criado_por.nome_display }}
+                            </td>
+                            
+                            <td data-label="Ações" class="text-center">
+                                <button type="button" class="btn btn-outline-primary btn-action" data-bs-toggle="modal" data-bs-target="#editModal-{{ produto.id }}">
+                                    <i class="bi bi-pencil-fill"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                                Nenhum produto ativo cadastrado no seu setor.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </form>
+        
+        {% if produtos.pages > 1 %}
+        <nav aria-label="Paginação de produtos" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not produtos.has_prev %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('routes.listar_produtos_encarregado', page=produtos.prev_num) }}">Anterior</a>
+                </li>
+                {% for page_num in produtos.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                    {% if page_num %}
+                        <li class="page-item {% if produtos.page == page_num %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('routes.listar_produtos_encarregado', page=page_num) }}">{{ page_num }}</a>
+                        </li>
+                    {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+                <li class="page-item {% if not produtos.has_next %}disabled{% endif %}">
+                    <a class="page-link" href="{{ url_for('routes.listar_produtos_encarregado', page=produtos.next_num) }}">Próximo</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+
+{% for produto in produtos.items %}
+<div class="modal fade" id="editModal-{{ produto.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('routes.editar_produto', produto_id=produto.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Produto</label>
+                        <input type="text" name="nome_produto" class="form-control fw-bold" value="{{ produto.nome_produto }}" readonly>
+                    </div>
+                    <div class="row">
+                        <div class="col-6 mb-3">
+                             <label class="form-label text-muted small">PLU</label>
+                             <input type="text" name="plu" class="form-control" value="{{ produto.plu }}" readonly>
+                        </div>
+                        <div class="col-6 mb-3">
+                            <label class="form-label text-muted small">Quantidade</label>
+                            <input type="number" name="quantidade" class="form-control" value="{{ produto.quantidade }}" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Validade</label>
+                        <input type="date" name="validade" class="form-control" value="{{ produto.validade.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Motivo (Opcional)</label>
+                        <input type="text" name="motivo_rebaixa" class="form-control" value="{{ produto.motivo_rebaixa or '' }}" placeholder="Ex: Embalagem amassada">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Busca Rápida
+    document.getElementById('searchInput').addEventListener('keyup', function() {
+        let filter = this.value.toUpperCase();
+        let table = document.getElementById('productsTable');
+        let tr = table.getElementsByTagName('tr');
+        for (let i = 1; i < tr.length; i++) {
+            // Em mobile (cards), o layout muda, mas a lógica de busca pelo texto interno funciona
+            let td = tr[i].getElementsByTagName('td')[1]; 
+            if (td) {
+                let txtValue = td.textContent || td.innerText;
+                tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
+            }
+        }
+    });
+
+    // Select All
+    document.getElementById('selectAll').addEventListener('click', function(event) {
+        let checkboxes = document.querySelectorAll('#productsTable tbody input[type="checkbox"]');
+        for (let checkbox of checkboxes) {
+            checkbox.checked = event.target.checked;
+        }
+    });
+});
+</script>
+{% endblock %}

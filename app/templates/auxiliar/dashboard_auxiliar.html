@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}Cadastrar Produto{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Cadastrar Novo Produto</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+         {% include 'partials/_product_form.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script defer src="{{ url_for('static', filename='js/zxing.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/product_scanner.js') }}"></script>
+<script defer src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+{% endblock %}

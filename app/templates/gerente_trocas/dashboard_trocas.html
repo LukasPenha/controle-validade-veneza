@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Relatórios{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Relatórios de Produtos</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Gerar Relatório de Produtos Cadastrados</div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('routes.gerar_relatorio_pdf') }}" target="_blank">
+                    <div class="mb-3"><label class="form-label">Loja</label>
+                        <select name="loja_id" class="form-select">
+                            <option value="todas">Todas as Lojas</option>
+                            {% for loja in lojas %}<option value="{{ loja.id }}">{{ loja.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label">Setor</label>
+                        <select name="setor_id" class="form-select">
+                            <option value="todos">Todos os Setores</option>
+                            {% for setor in setores %}<option value="{{ setor.id }}">{{ setor.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6 mb-3"><label class="form-label">Data de Início</label><input type="date" name="data_inicio" class="form-control" required></div>
+                        <div class="col-md-6 mb-3"><label class="form-label">Data de Fim</label><input type="date" name="data_fim" class="form-control" required></div>
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 mt-2">Gerar Relatório</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

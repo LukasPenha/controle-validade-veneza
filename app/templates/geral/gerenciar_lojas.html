@@ -1,0 +1,110 @@
+{% extends 'gerente_geral/base_gg.html' %}
+{% block title %}Gerenciar Lojas{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                Lojas Cadastradas
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+                        <i class="bi bi-plus-circle"></i> Cadastrar Nova Loja
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Cidade/Estado</th>
+                                <th>CNPJ</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for loja in lojas %}
+                            <tr>
+                                <td>{{ loja.nome }}</td>
+                                <td>{{ loja.cidade or 'N/A' }}/{{ loja.estado or 'N/A' }}</td>
+                                <td>{{ loja.cnpj or 'N/A' }}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ loja.id }}"><i class="bi bi-pencil"></i> Editar</button>
+                                    <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ loja.id }}"><i class="bi bi-trash"></i> Excluir</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">Nenhuma loja cadastrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Cadastrar Nova Loja</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('routes.gerenciar_lojas') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Nome da Loja</label><input type="text" name="nome" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label">CNPJ (Opcional)</label><input type="text" name="cnpj" class="form-control"></div>
+                    <div class="mb-2"><label class="form-label">Endereço</label><input type="text" name="endereco" class="form-control"></div>
+                    <div class="mb-2"><label class="form-label">Cidade</label><input type="text" name="cidade" class="form-control"></div>
+                    <div class="mb-2"><label class="form-label">Estado (UF)</label><input type="text" name="estado" class="form-control" maxlength="2"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Loja</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% for loja in lojas %}
+<div class="modal fade" id="editModal-{{ loja.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Editar Loja</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('routes.editar_loja', loja_id=loja.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">Nome da Loja</label><input type="text" name="nome" class="form-control" value="{{ loja.nome }}" required></div>
+                    <div class="mb-2"><label class="form-label">CNPJ (Opcional)</label><input type="text" name="cnpj" class="form-control" value="{{ loja.cnpj or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Endereço</label><input type="text" name="endereco" class="form-control" value="{{ loja.endereco or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Cidade</label><input type="text" name="cidade" class="form-control" value="{{ loja.cidade or '' }}"></div>
+                    <div class="mb-2"><label class="form-label">Estado (UF)</label><input type="text" name="estado" class="form-control" value="{{ loja.estado or '' }}" maxlength="2"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal-{{ loja.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirmar Exclusão</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir a loja <strong>{{ loja.nome }}</strong>?</p>
+                <p class="text-danger">Atenção: Esta ação não pode ser desfeita e só será permitida se não houver usuários vinculados a esta loja.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('routes.excluir_loja', loja_id=loja.id) }}" method="POST"><button type="submit" class="btn btn-danger">Excluir</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}

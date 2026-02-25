@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Controle de Validade{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <style>
+        :root { --sidebar-width: 260px; --topbar-height: 56px; }
+        [data-bs-theme="light"] { --bs-body-bg: #f8f9fa; --bs-body-color: #212529; --sidebar-bg: #212529; --sidebar-color: #adb5bd; --sidebar-hover-color: #ffffff; --sidebar-hover-bg: #343a40; --sidebar-active-bg: #0d6efd; --card-bg: #ffffff; --card-border-color: #dee2e6; --bs-link-color-rgb: 13, 110, 253; }
+        [data-bs-theme="dark"] { --bs-body-bg: #212529; --bs-body-color: #dee2e6; --sidebar-bg: #111418; --sidebar-color: #adb5bd; --sidebar-hover-color: #ffffff; --sidebar-hover-bg: #343a40; --sidebar-active-bg: #0d6efd; --card-bg: #2b3035; --card-border-color: #495057; --bs-link-color-rgb: 108, 166, 255; }
+        
+        body { background-color: var(--bs-body-bg); color: var(--bs-body-color); font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .card, .modal-content, .list-group-item { background-color: var(--card-bg); border-color: var(--card-border-color); }
+        .list-group-item-action:hover { background-color: var(--sidebar-hover-bg); }
+        
+        /* --- SIDEBAR --- */
+        .sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 100; width: var(--sidebar-width); background-color: var(--sidebar-bg); transition: transform 0.3s ease-in-out; }
+        .main-content { padding-top: var(--topbar-height); transition: margin-left 0.3s ease-in-out; margin-left: var(--sidebar-width); }
+        .navbar { z-index: 101; }
+        .navbar-toggler:focus { box-shadow: none; }
+        .sidebar-sticky { display: flex; flex-direction: column; height: 100vh; padding-top: var(--topbar-height); }
+        .sidebar-nav { flex-grow: 1; overflow-y: auto; }
+        .sidebar .nav-link { font-weight: 500; color: var(--sidebar-color); border-left: 3px solid transparent; padding: 0.75rem 1.5rem; }
+        .sidebar .nav-link:hover { color: var(--sidebar-hover-color); background-color: var(--sidebar-hover-bg); }
+        .sidebar .nav-link.active { color: #fff; background-color: var(--sidebar-active-bg); border-left-color: #fff; }
+        .sidebar .nav-link .bi { margin-right: 0.8rem; }
+        .user-profile { padding: 1rem 1.5rem; color: #fff; text-align: center; }
+        .user-profile .text-body-secondary { color: var(--sidebar-color) !important; opacity: 0.8; }
+        .user-profile .avatar { width: 60px; height: 60px; border-radius: 50%; background-color: #0d6efd; color: white; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; font-size: 1.8rem; font-weight: bold; }
+        .sidebar-footer { padding: 1rem 1.5rem; border-top: 1px solid #495057; }
+        .version { color: #6c757d; font-size: 0.8rem; text-align: center; margin-top: 0.5rem; }
+        .form-check-label { color: var(--sidebar-color); }
+
+        /* --- MELHORIAS VISUAIS E MOBILE --- */
+        
+        /* Cards do Dashboard */
+        .card-stats { border: none; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: transform 0.2s; }
+        .card-stats:hover { transform: translateY(-3px); }
+        .border-left-danger { border-left: 5px solid #dc3545 !important; }
+        .border-left-warning { border-left: 5px solid #ffc107 !important; }
+        .border-left-success { border-left: 5px solid #198754 !important; }
+        .border-left-primary { border-left: 5px solid #0d6efd !important; }
+
+        /* Botões de Ação Redondos */
+        .btn-action { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin: 0 2px; transition: all 0.2s; }
+        .btn-action:hover { transform: scale(1.1); }
+
+        /* TABELA RESPONSIVA (Mobile Stack) */
+        @media (max-width: 767.98px) { 
+            .sidebar { transform: translateX(calc(-1 * var(--sidebar-width))); } 
+            .sidebar.show { transform: translateX(0); } 
+            .main-content { margin-left: 0; } 
+
+            /* Transforma tabela em cards */
+            .table-responsive-stack thead { display: none; }
+            .table-responsive-stack tr { display: block; margin-bottom: 15px; background: var(--card-bg); border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); padding: 15px; border: 1px solid var(--card-border-color); }
+            .table-responsive-stack td { display: flex; justify-content: space-between; align-items: center; border: none; padding: 8px 0; border-bottom: 1px solid var(--card-border-color); text-align: right; }
+            .table-responsive-stack td:last-child { border-bottom: none; justify-content: center; padding-top: 15px; }
+            .table-responsive-stack td:before { content: attr(data-label); font-weight: bold; margin-right: 15px; text-align: left; opacity: 0.7; }
+            
+            /* Ajuste para checkbox em mobile */
+            .table-responsive-stack td input[type="checkbox"] { transform: scale(1.3); }
+        }
+    </style>
+</head>
+<body>
+    <header class="navbar navbar-light sticky-top bg-white flex-md-nowrap p-0 shadow-sm">
+        <div class="d-flex align-items-center">
+            <button class="navbar-toggler d-md-none collapsed border-0" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu" aria-controls="sidebarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <i class="bi bi-list fs-3"></i>
+            </button>
+            <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6 text-dark" href="{{ url_for('routes.index') }}">
+                <strong>Controle de Validade</strong>
+            </a>
+        </div>
+        <div class="navbar-nav">
+            <div class="nav-item text-nowrap d-flex align-items-center">
+                <a class="nav-link text-dark px-3" href="{{ url_for('auth.logout') }}">Sair <i class="bi bi-box-arrow-right"></i></a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav id="sidebarMenu" class="d-md-block sidebar collapse">
+                <div class="sidebar-sticky">
+                    <div class="user-profile">
+                        <div class="avatar">{{ current_user.nome_display[0]|upper }}</div>
+                        <h5>{{ current_user.nome_display }}</h5>
+                        <small class="text-body-secondary">{{ current_user.role.replace('_', ' ')|title }}</small>
+                    </div>
+
+                    <ul class="nav flex-column sidebar-nav">
+                        {% if current_user.role == 'gerente_geral' %}
+                            <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_geral') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'adicionar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.adicionar_catalogo') }}"><i class="bi bi-plus-circle"></i> Cadastrar Produto</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_lojas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_lojas') }}"><i class="bi bi-shop"></i> Gerenciar Lojas</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_usuarios' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_usuarios_geral') }}"><i class="bi bi-person-plus"></i> Gerenciar Usuários</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_catalogo') }}"><i class="bi bi-book"></i> Gerenciar Catálogo</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'relatorio_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_gerente_geral') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
+                        
+                        {% elif current_user.role == 'gerente' %}
+                            <li class="nav-item"><a class="nav-link {% if 'produtos_para_rebaixa' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.produtos_para_rebaixa') }}"><i class="bi bi-arrow-down-circle"></i> Para Rebaixa</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'produtos_em_rebaixa' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.produtos_em_rebaixa') }}"><i class="bi bi-tag"></i> Em Rebaixa</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'adicionar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.adicionar_catalogo') }}"><i class="bi bi-plus-circle"></i> Cadastrar Produto</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_catalogo') }}"><i class="bi bi-book"></i> Gerenciar Catálogo</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'relatorio_gerente' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_gerente') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
+                            <li class="nav-item"><a class="nav-link d-flex align-items-center {% if 'notifications' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.notifications') }}"><span><i class="bi bi-bell-fill"></i> Notificações</span> {% if unread_notification_count > 0 %}<span class="badge bg-danger rounded-pill ms-auto">{{ unread_notification_count }}</span>{% endif %}</a></li>
+                            <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Loja)</a></li>
+                        
+                        {% elif current_user.role == 'encarregado_setor' %}
+                            <li class="nav-item"><a class="nav-link {% if 'listar_produtos' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.listar_produtos_encarregado') }}"><i class="bi bi-list-task"></i> Listar Produtos</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'adicionar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.adicionar_catalogo') }}"><i class="bi bi-plus-circle"></i> Cadastrar Produto</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
+                            <li class="nav-item"><a class="nav-link {% if 'relatorio_encarregado' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_encarregado') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
+                            <li class="nav-item"><a class="nav-link d-flex align-items-center {% if 'notifications' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.notifications') }}"><span><i class="bi bi-bell-fill"></i> Notificações</span> {% if unread_notification_count > 0 %}<span class="badge bg-danger rounded-pill ms-auto">{{ unread_notification_count }}</span>{% endif %}</a></li>
+                            <li class="nav-item"><a class="nav-link text-danger {% if 'vencidos_encarregado' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.vencidos_encarregado') }}"><i class="bi bi-trash"></i> Vencidos (Setor)</a></li>
+
+                        {% elif current_user.role == 'auxiliar_gestao' %}
+                             <li class="nav-item"><a class="nav-link {% if 'adicionar_catalogo' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.adicionar_catalogo') }}"><i class="bi bi-plus-circle"></i> Cadastrar Produto</a></li>
+                             <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
+                             <li class="nav-item"><a class="nav-link d-flex align-items-center {% if 'notifications' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.notifications') }}"><span><i class="bi bi-bell-fill"></i> Notificações</span> {% if unread_notification_count > 0 %}<span class="badge bg-danger rounded-pill ms-auto">{{ unread_notification_count }}</span>{% endif %}</a></li>
+                        
+                        {% elif current_user.role == 'gerente_trocas' %}
+                             <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_trocas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_trocas') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
+                             <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Geral)</a></li>
+                        {% endif %}
+                    </ul>
+
+                    <div class="sidebar-footer">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="themeSwitcher">
+                            <label class="form-check-label" for="themeSwitcher"><i id="themeIcon" class="bi"></i> <span id="themeText"></span></label>
+                        </div>
+                        <div class="version">
+                            v.1.2.0 (Mobile Ready)
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="main-content col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                 <div class="pt-3 pb-2 mb-3">
+                     {% with messages = get_flashed_messages(with_categories=true) %}{% if messages %}{% for category, message in messages %}<div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>{% endfor %}{% endif %}{% endwith %}
+                    {% block content %}{% endblock %}
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const themeSwitcher = document.getElementById('themeSwitcher');
+            const themeIcon = document.getElementById('themeIcon');
+            const themeText = document.getElementById('themeText');
+            const htmlElement = document.documentElement;
+            const setTheme = (theme) => {
+                htmlElement.setAttribute('data-bs-theme', theme);
+                if (theme === 'dark') {
+                    themeSwitcher.checked = true;
+                    themeIcon.className = 'bi bi-moon-stars-fill';
+                    themeText.textContent = 'Escuro';
+                } else {
+                    themeSwitcher.checked = false;
+                    themeIcon.className = 'bi bi-sun-fill';
+                    themeText.textContent = 'Claro';
+                }
+            };
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            setTheme(savedTheme);
+            themeSwitcher.addEventListener('change', () => {
+                const newTheme = themeSwitcher.checked ? 'dark' : 'light';
+                localStorage.setItem('theme', newTheme);
+                setTheme(newTheme);
+            });
+        });
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

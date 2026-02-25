@@ -1,0 +1,17 @@
+{% extends 'encarregado/base_encarregado.html' %}
+{% block title %}Cadastrar Produto{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 offset-lg-2">
+        {# Esta linha carrega o formulário completo a partir de um arquivo separado #}
+        {% include 'partials/_product_form.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    <script defer src="{{ url_for('static', filename='js/zxing.min.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/product_scanner.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,56 @@
+<div class="card mb-4">
+    <div class="card-header">Cadastrar Novo Produto</div>
+    <div class="card-body">
+        <div class="border p-3 mb-4 rounded bg-light">
+            <h6><i class="bi bi-search"></i> Passo 1 (Opcional): Buscar Produto por Código de Barras</h6>
+            <p class="text-muted small">Use o leitor ou digite o código de barras do fornecedor para preencher o nome do produto automaticamente.</p>
+            <div class="input-group">
+                <input type="text" class="form-control" id="barcodeInput" placeholder="Digite ou leia o código de barras do fornecedor">
+                <button class="btn btn-outline-secondary" type="button" id="btnBuscarBarcode">Buscar</button>
+            </div>
+            <div class="mt-2">
+                <button class="btn btn-success" id="btnIniciarScan"><i class="bi bi-camera-video"></i> Escanear</button>
+                <button class="btn btn-danger" id="btnPararScan" style="display: none;"><i class="bi bi-stop-circle"></i> Parar</button>
+            </div>
+            <div id="statusBusca" class="form-text mt-1"></div>
+            <video id="video" style="display: none; width: 100%; border-radius: 5px; margin-top: 10px;"></video>
+        </div>
+
+        <h6><i class="bi bi-pencil-square"></i> Passo 2: Preencher os Detalhes do Produto</h6>
+        <form method="POST" action="{{ url_for('routes.cadastrar_produto') }}">
+            <input type="hidden" id="currentUserRole" value="{{ current_user.role }}">
+            <input type="hidden" name="barcode" id="barcodeFormInput">
+            
+            <div class="mb-2 position-relative">
+                <label class="form-label">Nome do Produto</label>
+                <input type="text" id="nome_produto" name="nome_produto" class="form-control" required autocomplete="off" placeholder="Preenchido automaticamente ou digite aqui">
+                <div id="searchResults" style="display: none; position: absolute; z-index: 1000; width: 100%;"></div>
+            </div>
+            
+            <div class="mb-2">
+                <label class="form-label">PLU (Código Interno da Empresa)</label>
+                <input type="text" id="plu" name="plu" class="form-control" required placeholder="Digite o código de identificação interno">
+            </div>
+            
+            {% if current_user.role in ['auxiliar_gestao', 'gerente'] %}
+            <div class="mb-2">
+                <label class="form-label">Setor</label>
+                <select name="setor_id" class="form-select" required>
+                    <option value="">Selecione...</option>
+                    {% for setor in setores %}
+                    <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+
+            <div class="row g-2">
+                <div class="col-md"><label class="form-label">Quantidade</label><input type="number" name="quantidade" class="form-control" required></div>
+                <div class="col-md"><label class="form-label">Validade</label><input type="date" name="validade" class="form-control" required></div>
+            </div>
+            <div class="mt-2"><label class="form-label">Motivo da Rebaixa (Opcional)</label><input type="text" name="motivo_rebaixa" class="form-control"></div>
+            
+            <button type="submit" class="btn btn-primary w-100 mt-3">Cadastrar Produto</button>
+        </form>
+    </div>
+</div>

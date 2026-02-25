@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Produtos para Rebaixa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Produtos Para Rebaixa</h1>
+</div>
+
+<div class="card border-warning">
+    <div class="card-header bg-warning text-dark">
+        <h5 class="mb-0">Aguardando Ação</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome do Produto</th>
+                        <th>Setor</th>
+                        <th>Validade</th>
+                        <th>Dias Rest.</th>
+                        <th>Cadastrado Por</th>
+                        <th>Alterar Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos_para_rebaixa.items %}
+                        {% set dias_restantes = (produto.validade - now.date()).days %}
+                        <tr class="{% if dias_restantes < 5 %}table-danger{% elif dias_restantes <= 10 %}table-warning{% endif %}">
+                            <td>{{ produto.nome_produto }}</td>
+                            <td>{{ produto.setor.nome }}</td>
+                            <td>{{ produto.validade.strftime('%d/%m/%Y') }}</td>
+                            <td>{{ dias_restantes }}</td>
+                            <td>{{ produto.criado_por.nome_display }}</td>
+                            <td>
+                                <form method="POST" action="{{ url_for('routes.alterar_status', produto_id=produto.id) }}" onsubmit="return confirm('Tem certeza que deseja alterar o status deste item?');">
+                                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                        <option value="Para Rebaixa" selected>Para Rebaixa</option>
+                                        <option value="Em Rebaixa">Em Rebaixa</option>
+                                    </select>
+                                </form>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center">Nenhum produto aguardando rebaixa.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <nav>
+            <ul class="pagination justify-content-center">
+                <li class="page-item {% if not produtos_para_rebaixa.has_prev %}disabled{% endif %}"><a class="page-link" href="{{ url_for('routes.produtos_para_rebaixa', page=produtos_para_rebaixa.prev_num) }}">Anterior</a></li>
+                {% for page_num in produtos_para_rebaixa.iter_pages() %}
+                    <li class="page-item {% if page_num == produtos_para_rebaixa.page %}active{% endif %}"><a class="page-link" href="{{ url_for('routes.produtos_para_rebaixa', page=page_num) }}">{{ page_num }}</a></li>
+                {% endfor %}
+                <li class="page-item {% if not produtos_para_rebaixa.has_next %}disabled{% endif %}"><a class="page-link" href="{{ url_for('routes.produtos_para_rebaixa', page=produtos_para_rebaixa.next_num) }}">Próximo</a></li>
+            </ul>
+        </nav>
+    </div>
+</div>
+{% endblock %}

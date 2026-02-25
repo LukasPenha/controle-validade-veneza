@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Cadastrar Item para Rebaixa{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Cadastrar Item para Rebaixa</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card">
+            <div class="card-header">
+                Registrar Lote com Data Curta
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h5 class="alert-heading">{{ catalogo_item.nome_produto }}</h5>
+                    <p class="mb-0"><strong>PLU:</strong> {{ catalogo_item.plu or 'N/A' }}</p>
+                    <p class="mb-0"><strong>Código de Barras Principal:</strong> {{ catalogo_item.barcode_1 or 'N/A' }}</p>
+                </div>
+                
+                <p class="text-muted">Preencha a quantidade e a data de validade para o lote deste produto que precisa ser rebaixado. Ele será enviado para aprovação do gerente.</p>
+
+                <form method="POST" action="{{ url_for('routes.cadastrar_rebaixa') }}">
+                    <input type="hidden" name="catalogo_id" value="{{ catalogo_item.id }}">
+                    <input type="hidden" name="nome_produto" value="{{ catalogo_item.nome_produto }}">
+                    <input type="hidden" name="plu" value="{{ catalogo_item.plu or '' }}">
+
+                    {% if current_user.role in ['auxiliar_gestao', 'gerente'] %}
+                    <div class="mb-3">
+                        <label class="form-label">Setor</label>
+                        <select name="setor_id" class="form-select" required>
+                            <option value="">Selecione o Setor</option>
+                            {% for setor in setores %}
+                            <option value="{{ setor.id }}">{{ setor.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantidade" class="form-label">Quantidade</label>
+                            <input type="number" id="quantidade" name="quantidade" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="validade" class="form-label">Data de Validade</label>
+                            <input type="date" id="validade" name="validade" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="motivo_rebaixa" class="form-label">Motivo da Rebaixa (Opcional)</label>
+                        <input type="text" id="motivo_rebaixa" name="motivo_rebaixa" class="form-control">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">Registrar para Rebaixa</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends 'gerente/base_gerente.html' %}
+{% block title %}Produtos Vencidos{% endblock %}
+
+{% block content %}
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5>Produtos Vencidos - Loja: {{ current_user.loja.nome }}</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">Esta lista mostra todos os produtos da sua loja cuja data de validade já passou.</p>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome do Produto</th>
+                        <th>Setor</th>
+                        <th>Data de Vencimento</th>
+                        <th>Dias Vencido</th>
+                        <th>Cadastrado Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for produto in produtos %}
+                    {% set dias_vencidos = (today - produto.validade).days %}
+                    <tr>
+                        <td>{{ produto.nome_produto }}</td>
+                        <td>{{ produto.setor.nome }}</td>
+                        <td>{{ produto.validade.strftime('%d/%m/%Y') }}</td>
+                        <td>{{ dias_vencidos }}</td>
+                        <td>{{ produto.criado_por.nome_display }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center">Nenhum produto vencido encontrado na sua loja.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

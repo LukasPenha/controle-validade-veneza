@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Gerenciar Usuários{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-header">Criar Novo Usuário</div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('routes.gerenciar_usuarios_geral') }}">
+                    <div class="mb-2"><label class="form-label">E-mail (Login)</label><input type="email" name="username" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label">Senha</label><input type="password" name="password" class="form-control" required></div>
+                    <div class="mb-2"><label class="form-label">Cargo</label>
+                        <select name="role" id="roleSelect" class="form-select" required>
+                            <option value="auxiliar_gestao">Auxiliar de Gestão</option>
+                            <option value="encarregado_setor">Encarregado de Setor</option>
+                            <option value="gerente">Gerente</option>
+                            <option value="gerente_trocas">Gerente de Trocas</option>
+                        </select>
+                    </div>
+                    <div class="mb-2" id="lojaField"><label class="form-label">Loja</label>
+                        <select name="loja_id" class="form-select">
+                            <option value="">Selecione a Loja</option>
+                            {% for loja in lojas %}<option value="{{ loja.id }}">{{ loja.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2" id="setorField" style="display: none;"><label class="form-label">Setor</label>
+                        <select name="setor_id" class="form-select">
+                            <option value="">Selecione o Setor</option>
+                            {% for setor in setores %}<option value="{{ setor.id }}">{{ setor.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-2">Criar Usuário</button>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Usuários Cadastrados</div>
+            <div class="card-body">
+                <form method="GET" action="{{ url_for('routes.gerenciar_usuarios_geral') }}" class="mb-4">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <input type="text" name="search_term" class="form-control" placeholder="Buscar por e-mail..." value="{{ request.args.get('search_term', '') }}">
+                        </div>
+                        <div class="col-md-4">
+                            <select name="loja_id" class="form-select">
+                                <option value="">Todas as Lojas</option>
+                                {% for loja in lojas %}
+                                <option value="{{ loja.id }}" {% if request.args.get('loja_id') == loja.id|string %}selected{% endif %}>{{ loja.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-grid">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-search"></i></button>
+                        </div>
+                    </div>
+                </form>
+
+                {% for loja in lojas_com_usuarios %}
+                    <h5 class="mt-4 border-bottom pb-2">{{ loja.nome }}</h5>
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Cargo</th>
+                                <th>Setor</th>
+                                <th class="text-center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in loja.usuarios %}
+                                {% if usuario.role != 'gerente_geral' %}
+                                <tr>
+                                    <td>{{ usuario.username }}</td>
+                                    <td>{{ usuario.role.replace('_', ' ')|title }}</td>
+                                    <td>{{ usuario.setor.nome if usuario.setor else 'N/A' }}</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editModal-{{ usuario.id }}"><i class="bi bi-pencil"></i></button>
+                                        <button class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal-{{ usuario.id }}"><i class="bi bi-trash"></i></button>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% for usuario in todos_usuarios %}
+<div class="modal fade" id="editModal-{{ usuario.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Editar Usuário</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form action="{{ url_for('routes.editar_usuario', usuario_id=usuario.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-2"><label class="form-label">E-mail</label><input type="email" name="username" class="form-control" value="{{ usuario.username }}" required></div>
+                    
+                    <div class="mb-2">
+                        <label class="form-label">Nova Senha</label>
+                        <input type="password" name="password" class="form-control" placeholder="Deixe em branco para não alterar">
+                    </div>
+                    
+                    <div class="mb-2"><label class="form-label">Cargo</label>
+                        <select name="role" class="form-select edit-role-select" data-usuario-id="{{ usuario.id }}">
+                            <option value="auxiliar_gestao" {% if usuario.role == 'auxiliar_gestao' %}selected{% endif %}>Auxiliar de Gestão</option>
+                            <option value="encarregado_setor" {% if usuario.role == 'encarregado_setor' %}selected{% endif %}>Encarregado de Setor</option>
+                            <option value="gerente" {% if usuario.role == 'gerente' %}selected{% endif %}>Gerente</option>
+                            <option value="gerente_trocas" {% if usuario.role == 'gerente_trocas' %}selected{% endif %}>Gerente de Trocas</option>
+                        </select>
+                    </div>
+                    <div class="mb-2 edit-loja-field" id="editLojaField-{{ usuario.id }}"><label class="form-label">Loja</label>
+                        <select name="loja_id" class="form-select">
+                             <option value="">Selecione a Loja</option>
+                            {% for loja in lojas %}<option value="{{ loja.id }}" {% if usuario.loja_id == loja.id %}selected{% endif %}>{{ loja.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-2 edit-setor-field" id="editSetorField-{{ usuario.id }}" style="display: none;"><label class="form-label">Setor</label>
+                        <select name="setor_id" class="form-select">
+                            <option value="">Selecione o Setor</option>
+                            {% for setor in setores %}<option value="{{ setor.id }}" {% if usuario.setor_id == setor.id %}selected{% endif %}>{{ setor.nome }}</option>{% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteModal-{{ usuario.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">Confirmar Exclusão</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o usuário <strong>{{ usuario.username }}</strong>?</p>
+                <p class="text-warning small">Atenção: Os produtos cadastrados por este usuário não serão excluídos, mas ficarão sem um "autor".</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('routes.excluir_usuario', usuario_id=usuario.id) }}" method="POST"><button type="submit" class="btn btn-danger">Excluir</button></form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFields(role, lojaField, setorField) {
+    if (role === 'encarregado_setor') {
+        lojaField.style.display = 'block';
+        setorField.style.display = 'block';
+    } else if (role === 'gerente_trocas') {
+        lojaField.style.display = 'none';
+        setorField.style.display = 'none';
+    } else { // Auxiliar e Gerente
+        lojaField.style.display = 'block';
+        setorField.style.display = 'none';
+    }
+}
+document.addEventListener('DOMContentLoaded', function() {
+    const roleSelect = document.getElementById('roleSelect');
+    if(roleSelect) {
+        roleSelect.addEventListener('change', function() {
+            toggleFields(this.value, document.getElementById('lojaField'), document.getElementById('setorField'));
+        });
+    }
+
+    document.querySelectorAll('.edit-role-select').forEach(select => {
+        const usuarioId = select.dataset.usuarioId;
+        const lojaField = document.getElementById(`editLojaField-${usuarioId}`);
+        const setorField = document.getElementById(`editSetorField-${usuarioId}`);
+        
+        toggleFields(select.value, lojaField, setorField);
+
+        select.addEventListener('change', function() {
+            toggleFields(this.value, lojaField, setorField);
+        });
+    });
+});
+</script>
+{% endblock %}
