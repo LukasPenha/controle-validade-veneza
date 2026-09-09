@@ -1,38 +1,36 @@
 {% extends 'base.html' %}
-{% block title %}Marcar Datas Curtas{% endblock %}
-
+{% block title %}Pesquisar produto · Veneza{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Marcar Produtos com Data Curta</h1>
+<div class="page-heading">
+    <div><span class="eyebrow">DO PRODUTO AO LOTE</span><h1>Pesquisar produto<span class="heading-dot">.</span></h1>
+        <p>Encontre o alimento pela embalagem. Registre a validade do seu lote.</p></div>
 </div>
-
-<div class="row">
-    <div class="col-md-8 offset-md-2">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">Encontre o produto no catálogo</h5>
-                <p class="card-text text-muted">
-                    Pesquise por nome, PLU ou código de barras. Selecione o produto para informar a quantidade e a validade do lote.
-                </p>
-                <div class="mb-3">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="search" id="productSearchInput" class="form-control" placeholder="Nome, PLU ou código de barras" aria-label="Buscar no catálogo" autocomplete="off">
-                    </div>
-                </div>
-                <div class="d-flex gap-2 flex-wrap mb-3"><button type="button" class="btn btn-outline-primary" id="cameraStart"><i class="bi bi-camera me-2"></i>Ler código com a câmera</button><button type="button" class="btn btn-outline-secondary" id="cameraStop" hidden>Fechar câmera</button><a class="btn btn-link" href="{{ url_for('routes.adicionar_catalogo') }}">Cadastrar novo produto</a></div>
-                <video id="catalogVideo" playsinline muted hidden style="width:100%;max-height:320px;border-radius:12px;object-fit:cover"></video>
-                <p id="cameraStatus" role="status" class="small text-muted"></p>
-                <div id="searchResultsContainer" aria-live="polite">
-                    </div>
-            </div>
-        </div>
+<section class="panel lookup-panel">
+    <h2>Qual produto você quer acompanhar?</h2>
+    <p class="text-muted">Leia o código de barras ou pesquise pelo nome e pela marca.</p>
+    <form id="productSearchForm" class="d-flex gap-2 mb-3">
+        <label for="productSearchInput" class="visually-hidden">Nome ou código de barras</label>
+        <input type="search" id="productSearchInput" class="form-control" placeholder="Ex.: leite integral ou 789…" autocomplete="off" maxlength="100" required>
+        <button id="productSearchButton" class="btn btn-primary" type="submit">Pesquisar</button>
+    </form>
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <button type="button" class="btn btn-outline-primary" id="cameraStart"><i class="bi bi-camera me-2"></i>Ler código com a câmera</button>
+        <button type="button" class="btn btn-outline-secondary" id="cameraStop" hidden>Fechar câmera</button>
     </div>
-</div>
+    <video id="catalogVideo" playsinline muted hidden class="scanner-video"></video>
+    <p id="cameraStatus" role="status" class="small text-muted"></p>
+    <div id="searchResultsContainer" aria-live="polite" class="lookup-results">
+        <div class="empty-state"><i class="bi bi-upc-scan"></i><p>Uma consulta, menos digitação.</p><small>Os resultados aparecerão aqui após pesquisar.</small></div>
+    </div>
+    <div class="lookup-source mt-4 pt-3 border-top">
+        Dados de <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener noreferrer">Open Food Facts</a> ·
+        <a href="https://world.openfoodfacts.org/terms-of-use" target="_blank" rel="noopener noreferrer">ODbL</a>.
+        A base colaborativa pode não conter todos os itens. Confira a identificação na embalagem.
+    </div>
+</section>
 {% endblock %}
-
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/datas_curtas_search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/product_search.js') }}"></script>
 <script src="{{ url_for('static', filename='js/zxing.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/catalog_camera.js') }}"></script>
 {% endblock %}

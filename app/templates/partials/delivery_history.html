@@ -1,0 +1,10 @@
+<section class="panel delivery-history">
+    <span class="eyebrow">TRANSPARÊNCIA NOS ENVIOS</span>
+    <h2 class="mt-2">Últimos e-mails da sua conta</h2>
+    <p class="text-muted small">“Enviado” indica que o servidor de e-mail aceitou a mensagem. Confira também o spam.</p>
+    <div class="table-responsive"><table class="table"><thead><tr><th>Data</th><th>Assunto</th><th>Situação</th><th>Tentativas</th></tr></thead><tbody>
+    {% for item in deliveries %}
+    <tr><td>{{ item.created_at|data_br }}</td><td>{{ item.subject }}{% if item.last_error %}<small class="d-block text-muted">{{ item.last_error }}</small>{% endif %}</td><td><span class="status-pill {{ 'expired' if item.status in ['failed','uncertain'] else '' }}">{{ {'pending':'Na fila','sending':'Enviando','sent':'Enviado','failed':'Falhou','uncertain':'Não confirmado','skipped':'Sem produtos','expired':'Expirado','cancelled':'Cancelado'}.get(item.status,item.status) }}</span>{% if item.sent_at %}<small class="d-block text-muted">{{ item.sent_at|data_br }}</small>{% endif %}</td><td>{{ item.attempts }}</td></tr>
+    {% else %}<tr><td colspan="4" class="text-muted">Nenhum envio registrado ainda.</td></tr>{% endfor %}
+    </tbody></table></div>
+</section>

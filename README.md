@@ -1,38 +1,30 @@
 # Controle de validade Veneza
 
-Aplicação Flask para controle de validade por loja e setor.
+Aplicação Flask para lotes por loja e setor, dashboard executivo, central de alertas e e-mails personalizados.
 
-Novo dashboard executivo, alertas por usuário, recuperação de senha, consulta de
-catálogo e câmera para código de barras. Veja [configuração e publicação](docs/CONFIGURACAO.md)
-antes de atualizar o Render: esta versão requer a migração das tabelas de e-mail.
+A V2 usa consulta gratuita à Open Food Facts por nome ou código de barras, com câmera. O catálogo interno foi removido. Quantidade, validade e lote são informados após selecionar o produto.
+
+Esta versão requer **um banco novo**. Veja o [guia de configuração](docs/CONFIGURACAO.md), o [SQL de instalação](database/novo_banco.sql) e a [comparação das APIs](docs/APIS_PRODUTOS.md).
 
 ## Executar
 
-1. Crie um ambiente virtual: `python -m venv .venv`.
+1. Crie o ambiente: `python -m venv .venv`.
 2. Instale: `.venv/Scripts/python -m pip install -r requirements.txt`.
-3. Configure `DATABASE_URL` e `SECRET_KEY` no arquivo `.env`.
-4. Execute `.venv/Scripts/python run.py`.
+3. Configure `.env` conforme `.env.example`. Localmente use `COOKIE_SECURE=false` para HTTP.
+4. Instale: `.venv/Scripts/python -m flask --app run init-db` (ou execute o SQL, nunca ambos).
+5. Crie o acesso: `.venv/Scripts/python -m flask --app run create-admin`.
+6. Inicie: `.venv/Scripts/python run.py`.
 
-Gere a chave com `python -c "import secrets; print(secrets.token_hex(32))"`.
-A aplicação exige ao menos 32 caracteres. Preserve a chave entre reinícios;
-alterá-la invalida sessões. Não publique o arquivo `.env`.
-
-## Produção
-
-Use HTTPS e `COOKIE_SECURE=true` para restringir cookies a HTTPS.
-A verificação diária ocorre às 08h de São Paulo. Habilite
-`SCHEDULER_ENABLED=true` em apenas um processo e configure
-`SCHEDULER_ENABLED=false` nos demais para evitar notificações duplicadas.
-
-Formulários POST e logout exigem token CSRF. Integrações precisam enviar
-`csrf_token` ou o cabeçalho `X-CSRFToken` e manter o cookie da sessão.
+Nunca publique `.env`. A SECRET_KEY deve ser aleatória, com pelo menos 32 caracteres. Gere com `python -c "import secrets; print(secrets.token_hex(32))"` e preserve entre reinícios.
 
 ## Testes
 
 Execute `.venv/Scripts/python -m unittest discover -s tests -v`.
-Os testes usam SQLite em memória e não alteram o banco do `.env`.
 
-As melhorias incluem proteção CSRF, cookies HttpOnly/SameSite, cabeçalhos de
-segurança, remoção de HTML dinâmico inseguro e reutilização da aplicação na
-tarefa diária. Ainda há melhorias possíveis: validação centralizada dos
-cadastros, limitação de tentativas de login e separação das rotas por domínio.
+Usam banco em memória, sem acessar o `.env`. `tests/preview_app.py` usa dados fictícios e consulta simulada. `tests/ui_check.cjs` verifica a interface com Playwright.
+
+## Produção
+
+Use HTTPS, `COOKIE_SECURE=true` e PostgreSQL. Render Free bloqueia Gmail SMTP e pode dormir; os e-mails exigem outra infraestrutura ou futura integração por HTTPS. Leia o guia antes de habilitar agendamentos.
+
+Dados: [Open Food Facts](https://world.openfoodfacts.org), sob [ODbL e termos de uso](https://world.openfoodfacts.org/terms-of-use). Cobertura não garantida; confira a embalagem.

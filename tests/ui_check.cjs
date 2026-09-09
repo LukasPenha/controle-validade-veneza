@@ -32,7 +32,7 @@ const fs = require('fs');
   await page.screenshot({path:path.join(output,'profile-mobile.png'),fullPage:true});
   await page.getByLabel('Frequência',{exact:true}).selectOption('weekly');
   if (!(await page.locator('#weekday').isEnabled())) throw new Error('Weekly weekday disabled');
-  for (const route of ['/gerente-geral/lojas','/gerente-geral/usuarios','/catalogo','/catalogo/adicionar','/gerente-geral/relatorio','/produtos/vencidos']) {
+  for (const route of ['/gerente-geral/lojas','/gerente-geral/usuarios','/datas-curtas','/notifications','/gerente-geral/relatorio','/produtos/vencidos']) {
     await page.goto('http://127.0.0.1:8011'+route);
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow ${route}`);
   }
@@ -56,11 +56,13 @@ const fs = require('fs');
   if (await page.locator('#productSearchInput').inputValue() !== '7890000000000') throw new Error('Camera result missing');
   if (!(await page.evaluate(() => window.cameraStopped))) throw new Error('Camera not stopped');
   await page.locator('#productSearchInput').fill('Arroz');
+  await page.getByRole('button',{name:'Pesquisar',exact:true}).click();
+  await page.screenshot({path:path.join(output,'search-mobile.png'),fullPage:true});
   await page.locator('#searchResultsContainer a').first().click();
   await page.locator('#quantidade').fill('4');
   await page.locator('#validade').fill('2026-12-31');
-  await page.getByRole('button',{name:'Registrar para Rebaixa'}).click();
-  if (!(await page.getByText('foi enviado para o painel', {exact:false}).count())) throw new Error('Registration failed');
+  await page.getByRole('button',{name:'Registrar lote',exact:true}).click();
+  if (!(await page.getByText('Lote registrado e notificações atualizadas.', {exact:false}).count())) throw new Error('Registration failed');
   for (const route of ['/encarregado/produtos','/encarregado/vencidos','/encarregado/relatorio','/notifications']) {
     await page.goto('http://127.0.0.1:8011'+route);
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow ${route}`);
@@ -77,6 +79,6 @@ const fs = require('fs');
     }
   }
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('UI OK: dashboard 320/390/768/1440px, mobile pages for all roles, menu, weekly preferences, simulated camera, catalog selection and registration.');
+  console.log('UI OK: dashboard 320/390/768/1440px, mobile pages for all roles, menu, weekly preferences, simulated camera, external selection and lot registration.');
   await browser.close();
 })().catch(error => {console.error(error); process.exit(1);});

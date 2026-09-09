@@ -8,6 +8,17 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import event
+from sqlalchemy.engine import Engine
+import sqlite3
+
+
+@event.listens_for(Engine, 'connect')
+def sqlite_foreign_keys(connection, record):
+    if isinstance(connection, sqlite3.Connection):
+        cursor = connection.cursor()
+        cursor.execute('PRAGMA foreign_keys=ON')
+        cursor.close()
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
@@ -50,7 +61,7 @@ def create_app(config=None):
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_SECURE=os.getenv('COOKIE_SECURE', 'false').lower() == 'true',
         MAX_CONTENT_LENGTH=1024 * 1024,
-        SCHEDULER_ENABLED=os.getenv('SCHEDULER_ENABLED', 'true').lower() == 'true',
+        SCHEDULER_ENABLED=os.getenv('SCHEDULER_ENABLED', 'false').lower() == 'true',
         PUBLIC_BASE_URL=os.getenv('PUBLIC_BASE_URL', ''),
         MAIL_SERVER=os.getenv('MAIL_SERVER', ''),
         MAIL_PORT=int(os.getenv('MAIL_PORT', '587')),
@@ -59,6 +70,7 @@ def create_app(config=None):
         MAIL_USERNAME=os.getenv('MAIL_USERNAME', ''),
         MAIL_PASSWORD=os.getenv('MAIL_PASSWORD', ''),
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER', ''),
+        PRODUCT_API_USER_AGENT=os.getenv('PRODUCT_API_USER_AGENT', 'VenezaValidade/2.0 (https://controle-validade-veneza-1.onrender.com)'),
     )
     if config:
         app.config.update(config)
@@ -80,8 +92,14 @@ def create_app(config=None):
     app.register_blueprint(auth_bp)
     from .preferences import profile_bp, process_email_jobs
     app.register_blueprint(profile_bp)
-    from .catalog_api import catalog_api
-    app.register_blueprint(catalog_api)
+    from .product_lookup import lookup_bp
+    from .lots import lots_bp
+    from .notifications import notifications_bp, unread_query
+    app.register_blueprint(lookup_bp)
+    app.register_blueprint(lots_bp)
+    app.register_blueprint(notifications_bp)
+    from .database import register_database_commands
+    register_database_commands(app)
 
     @login_manager.unauthorized_handler
     def unauthorized():
@@ -98,11 +116,8 @@ def create_app(config=None):
         from .tasks import verificar_validades_diarias
         scheduler = APScheduler()
         scheduler.init_app(app)
-        scheduler.add_job(
-            id='daily_validity_check', func=verificar_validades_diarias,
-            args=[app], trigger='cron', hour=8, minute=0,
-            timezone='America/Sao_Paulo',
-        )
+        scheduler.add_job(id='validity_check', func=verificar_validades_diarias,
+                          args=[app], trigger='interval', minutes=5, max_instances=1, coalesce=True)
         scheduler.add_job(id='email_delivery', func=process_email_jobs, args=[app],
                           trigger='interval', minutes=1, max_instances=1, coalesce=True)
         scheduler.start()
@@ -119,16 +134,11 @@ def create_app(config=None):
         return response
 
     # Injetor de notificações
-    from .models import Notificacao, notificacao_lida
     @app.context_processor
     def inject_notifications():
-        if current_user.is_authenticated and hasattr(current_user, 'loja_id') and current_user.loja_id:
+        if current_user.is_authenticated:
             try:
-                lidas_subquery = db.session.query(notificacao_lida.c.notificacao_id).filter_by(usuario_id=current_user.id)
-                unread_count = Notificacao.query.filter(
-                    Notificacao.loja_id == current_user.loja_id,
-                    ~Notificacao.id.in_(lidas_subquery)
-                ).count()
+                unread_count = unread_query(current_user).count()
                 return dict(unread_notification_count=unread_count)
             except SQLAlchemyError:
                 db.session.rollback()
@@ -143,7 +153,8 @@ def create_app(config=None):
         if not value:
             return ""
         # Formata para Dia/Mês/Ano Hora:Minuto
-        return value.strftime('%d/%m/%Y %H:%M')
+        from .models import BRASIL
+        return value.astimezone(BRASIL).strftime('%d/%m/%Y %H:%M')
     
     @app.template_filter('data_simples')
     def data_simples_filter(value):

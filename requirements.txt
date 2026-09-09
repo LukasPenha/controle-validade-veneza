@@ -12,4 +12,5 @@ python-dotenv
 waitress
 Flask-Migrate
 pytz
+tzdata
 Flask-WTF>=1.2.2,<2

@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const code = result.getText();
                 close();
                 input.value = code;
-                input.dispatchEvent(new Event('input', {bubbles:true}));
+                input.dispatchEvent(new Event('barcode-scanned', {bubbles:true}));
                 status.textContent = `Código lido: ${code}. Selecione o produto abaixo.`;
             });
             if (currentGeneration !== generation) close();

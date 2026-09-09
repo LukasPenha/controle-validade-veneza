@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Registrar lote · Veneza{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">CONTROLE DE VALIDADE</span><h1>Registrar lote<span class="heading-dot">.</span></h1><p>Produto identificado. Agora informe os dados da sua loja.</p></div></div>
+<div class="settings-grid">
+    <form method="POST" class="panel">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="selection" value="{{ selection }}">
+        {% if current_user.role == 'gerente_geral' %}
+        <label for="loja_id" class="form-label">Loja</label>
+        <select id="loja_id" name="loja_id" class="form-select mb-3" required><option value="">Selecione</option>{% for store in stores %}<option value="{{ store.id }}">{{ store.nome }}</option>{% endfor %}</select>
+        {% endif %}
+        {% if current_user.role != 'encarregado_setor' %}
+        <label for="setor_id" class="form-label">Setor</label>
+        <select id="setor_id" name="setor_id" class="form-select mb-3" required><option value="">Selecione</option>{% for sector in sectors %}<option value="{{ sector.id }}">{{ sector.nome }}</option>{% endfor %}</select>
+        {% else %}<p class="status-pill mb-4">{{ current_user.loja.nome }} · {{ current_user.setor.nome }}</p>{% endif %}
+        <div class="row g-3">
+            <div class="col-sm-6"><label for="quantidade" class="form-label">Quantidade de unidades</label><input id="quantidade" name="quantidade" type="number" min="1" max="2147483647" class="form-control" required></div>
+            <div class="col-sm-6"><label for="validade" class="form-label">Validade da embalagem</label><input id="validade" name="validade" type="date" class="form-control" required></div>
+            <div class="col-sm-6"><label for="lote" class="form-label">Número do lote (opcional)</label><input id="lote" name="lote" maxlength="80" class="form-control"></div>
+            <div class="col-sm-6"><label for="plu" class="form-label">PLU interno (opcional)</label><input id="plu" name="plu" maxlength="50" class="form-control"></div>
+        </div>
+        <label for="motivo_rebaixa" class="form-label mt-3">Observação (opcional)</label>
+        <input id="motivo_rebaixa" name="motivo_rebaixa" maxlength="255" class="form-control">
+        <button type="submit" class="btn btn-primary w-100 mt-4">Registrar lote</button>
+    </form>
+    <aside class="panel align-self-start settings-aside"><span class="eyebrow">PRODUTO SELECIONADO</span><h2 class="mt-3">{{ product.nome }}</h2><p>{{ product.marca }} {{ '· ' ~ product.embalagem if product.embalagem else '' }}</p><p class="date-chip d-inline-block">{{ product.barcode }}</p><p class="small text-muted">A API identifica o produto. A validade e o lote precisam ser conferidos na embalagem.</p><a href="{{ product.source_url }}" target="_blank" rel="noopener noreferrer" class="small">Fonte: Open Food Facts · ODbL</a><br><a href="{{ url_for('routes.datas_curtas') }}" class="btn btn-outline-primary mt-4">Escolher outro produto</a></aside>
+</div>
+{% endblock %}

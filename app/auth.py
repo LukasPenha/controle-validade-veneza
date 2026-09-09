@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, session
 from flask_login import login_user, logout_user, login_required, current_user
-from .models import Usuario, db
-from datetime import datetime, timedelta
+from .models import Usuario, db, utcnow
+from datetime import timedelta
 from sqlalchemy import func
 from .preferences import (EmailDelivery, valid_email, issue_token,
                           find_token, claim_token)
@@ -46,7 +46,7 @@ def forgot_password():
             user = Usuario.query.filter(func.lower(Usuario.username) == address).first()
             if user:
                 recent = EmailDelivery.query.filter_by(user_id=user.id, kind='reset').filter(
-                    EmailDelivery.created_at > datetime.utcnow() - timedelta(minutes=5)).first()
+                    EmailDelivery.created_at > utcnow() - timedelta(minutes=5)).first()
                 if not recent:
                     issue_token(user, 'reset', address)
                     db.session.commit()

@@ -37,9 +37,9 @@ def dashboard_data():
         units, records = q.with_entities(func.coalesce(func.sum(Produto.quantidade), 0), func.count(Produto.id)).one()
         return {'units': units, 'records': records}
     def ranking(q):
-        return q.with_entities(Produto.plu, func.min(Produto.nome_produto).label('name'),
+        return q.with_entities(Produto.barcode.label('code'), func.min(Produto.nome_produto).label('name'),
             func.sum(Produto.quantidade).label('units'), func.count(Produto.id).label('records')).group_by(
-                Produto.plu).order_by(func.sum(Produto.quantidade).desc(), Produto.plu).limit(5).all()
+                Produto.barcode).order_by(func.sum(Produto.quantidade).desc(), Produto.barcode).limit(5).all()
     detail_query = yearly
     if month:
         detail_query = detail_query.filter(extract('month', Produto.validade) == month)

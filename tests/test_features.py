@@ -1,13 +1,12 @@
 import unittest
 from datetime import date, datetime, timedelta
 from unittest.mock import patch
-from tempfile import TemporaryDirectory
-from pathlib import Path
 from flask import g
 
 from app import create_app, db
 from app.analytics import dashboard_data
-from app.models import Usuario, Loja, Setor, Produto, ProdutoCatalogo, agora_brasil
+from app.models import Usuario, Loja, Setor, Produto, Notificacao, NotificationRead, agora_brasil, utcnow
+from app.notifications import sync_expiry_notifications, unread_query
 from app.preferences import (EmailPreference, EmailDelivery, issue_token,
                              find_token, queue_due_alerts, deliver_pending)
 
@@ -32,9 +31,9 @@ class FeatureTests(unittest.TestCase):
         for name, store, sector, days, quantity, plu in [
             ('Arroz',1,1,0,10,'01'),('Arroz',1,1,7,20,'01'),('Fora da faixa',1,1,8,30,'02'),
             ('Outro setor',1,2,2,40,'03'),('Outra loja',2,1,2,50,'04'),('Vencido',1,1,-1,60,'05')]:
-            db.session.add(Produto(nome_produto=name, plu=plu, loja_id=store, setor_id=sector,
+            db.session.add(Produto(nome_produto=name, plu=plu, barcode='3017620422003',
+                source_url='https://world.openfoodfacts.org/product/3017620422003', loja_id=store, setor_id=sector,
                 quantidade=quantity, validade=self.today+timedelta(days=days)))
-        db.session.add(ProdutoCatalogo(nome_produto='Arroz', plu='01', barcode_1='0789000000012', barcode_2='12345678'))
         db.session.commit()
         self.client = self.app.test_client()
 
@@ -127,7 +126,7 @@ class FeatureTests(unittest.TestCase):
         expired = issue_token(self.user,'reset',self.user.username)
         db.session.flush()
         record = find_token(expired,'reset')
-        record.expires_at = datetime.utcnow()-timedelta(seconds=1)
+        record.expires_at = utcnow()-timedelta(seconds=1)
         db.session.commit()
         self.assertIsNone(find_token(expired,'reset'))
 
@@ -155,59 +154,129 @@ class FeatureTests(unittest.TestCase):
         self.login()
         self.assertEqual(self.client.get('/gerente-geral/dashboard').status_code,302)
 
-    def test_catalog_api_preserves_zeros_and_matches_all_barcodes(self):
-        self.assertEqual(self.client.get('/api/catalogo?term=Arroz').status_code,401)
-        self.login()
-        for term in ['arroz','01','0789000000012','12345678']:
-            data=self.client.get('/api/catalogo',query_string={'term':term}).get_json()
-            self.assertEqual(data[0]['nome'],'Arroz')
-            self.assertEqual(data[0]['barcode'],'0789000000012')
-        self.assertEqual(self.client.get('/api/catalogo?term=%25').get_json(),[])
-        self.assertEqual(self.client.get('/api/buscar-produto/missing').status_code,404)
-
-    def test_registration_uses_catalog_and_assigned_sector(self):
-        self.login()
-        self.client.post('/cadastrar-rebaixa',data={'catalogo_id':'1','nome_produto':'Tampered',
-            'plu':'Fake','quantidade':'5','validade':str(self.today),'setor_id':'2'})
-        product=Produto.query.order_by(Produto.id.desc()).first()
-        self.assertEqual((product.nome_produto,product.plu,product.setor_id),('Arroz','01',1))
-        before=Produto.query.count()
-        self.client.post('/cadastrar-rebaixa',data={'catalogo_id':'1','quantidade':'-1','validade':str(self.today)})
-        self.assertEqual(Produto.query.count(),before)
 
     def test_delivery_rechecks_scope_after_role_change(self):
         self.preference(frequency='daily')
-        queue_due_alerts(agora_brasil().replace(hour=10))
+        now = agora_brasil().replace(hour=23, minute=59)
+        queue_due_alerts(now)
         self.user.setor_id=2
         db.session.commit()
         self.app.config.update(MAIL_SERVER='smtp.example.test',MAIL_DEFAULT_SENDER='sender@example.test')
-        with patch('app.preferences.smtplib.SMTP') as smtp:
-            deliver_pending()
+        with patch('app.mail_service.smtplib.SMTP') as smtp:
+            deliver_pending(now)
             message=smtp.return_value.__enter__.return_value.send_message.call_args[0][0]
             self.assertIn('Outro setor',message.get_content())
             self.assertNotIn('Arroz',message.get_content())
         self.assertEqual(EmailDelivery.query.one().status,'sent')
 
+    def test_external_lookup_cache_and_signed_registration(self):
+        self.assertEqual(self.client.get('/api/produtos?term=arroz').status_code, 401)
+        self.login()
+        with patch('app.product_lookup.requests.get') as get:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = {'products': [{'code':'0789000000012','product_name':'Arroz'}]}
+            result = self.client.get('/api/produtos?term=arroz').get_json()['products'][0]
+            self.client.get('/api/produtos?term=arroz')
+            self.assertEqual(get.call_count, 1)
+        self.assertEqual(result['barcode'], '0789000000012')
+        self.client.post('/lotes/novo', data={'selection':result['selection'], 'nome_produto':'Forjado',
+            'quantidade':'5','validade':str(self.today),'setor_id':'2'})
+        product = Produto.query.order_by(Produto.id.desc()).first()
+        self.assertEqual((product.nome_produto,product.setor_id,product.barcode), ('Arroz',1,'0789000000012'))
+        before = Produto.query.count()
+        for token in ['invalid', result['selection']]:
+            self.client.post('/lotes/novo', data={'selection':token,'quantidade':'-1','validade':str(self.today)})
+        self.assertEqual(Produto.query.count(), before)
+        self.assertEqual(self.client.get('/catalogo').status_code,404)
+        self.assertNotIn('Gerenciar Catálogo', self.client.get('/datas-curtas').get_data(as_text=True))
+
+    def test_lookup_error_and_quota(self):
+        import requests
+        self.login()
+        with patch('app.product_lookup.requests.get', side_effect=requests.Timeout):
+            self.assertEqual(self.client.get('/api/produtos?term=arroz').status_code,503)
+            self.assertEqual(self.client.get('/api/produtos?term=feijao').status_code,429)
+        self.assertEqual(self.client.get('/api/produtos?term=12').status_code,400)
+        self.assertEqual(self.client.get('/lotes/novo').status_code,302)
+
+    def test_user_validation_respects_new_schema(self):
+        self.user.role='gerente_geral'
+        db.session.commit()
+        self.login()
+        for data in [dict(username='bad',role='gerente'),
+                     dict(username='new@example.test',role='invalid',password='Valid-123456'),
+                     dict(username='new@example.test',role='gerente',password='Valid-123456',loja_id='999')]:
+            self.assertEqual(self.client.post('/gerente-geral/usuarios',data=data).status_code,302)
+        self.assertEqual(Usuario.query.count(),1)
+        response=self.client.post('/gerente-geral/usuarios',data=dict(username='new@example.test',
+            role='encarregado_setor',password='Valid-123456',loja_id='1',setor_id='1'))
+        self.assertEqual(response.status_code,302)
+        self.assertEqual(Usuario.query.count(),2)
+
+    def test_database_constraints_and_notification_cascade(self):
+        from sqlalchemy.exc import IntegrityError
+        sync_expiry_notifications()
+        item=Produto.query.first()
+        item.quantidade=0
+        with self.assertRaises(IntegrityError):
+            db.session.commit()
+        db.session.rollback()
+        item_id=item.id
+        event=Notificacao.query.filter_by(produto_id=item_id).first()
+        db.session.add(NotificationRead(usuario_id=self.user.id,notificacao_id=event.id))
+        db.session.commit()
+        db.session.delete(item)
+        db.session.commit()
+        self.assertEqual(Notificacao.query.filter_by(produto_id=item_id).count(),0)
+        self.assertEqual(NotificationRead.query.count(),0)
+
+    def test_notifications_scope_read_and_lifecycle(self):
+        sync_expiry_notifications()
+        count = Notificacao.query.count()
+        sync_expiry_notifications()
+        self.assertEqual(Notificacao.query.count(),count)
+        self.assertEqual(unread_query(self.user).count(),3)
+        self.login()
+        self.assertEqual(self.client.get('/notifications').status_code,200)
+        self.assertEqual(NotificationRead.query.count(),0)
+        foreign = Notificacao.query.filter_by(loja_id=2).first()
+        self.assertEqual(self.client.post(f'/notifications/{foreign.id}/read').status_code,404)
+        self.client.post('/notifications/read-all')
+        self.assertEqual(unread_query(self.user).count(),0)
+        self.assertEqual(NotificationRead.query.count(),3)
+        item=Produto.query.filter_by(nome_produto='Vencido').first()
+        item.validade = self.today+timedelta(days=60)
+        db.session.commit()
+        sync_expiry_notifications()
+        self.assertIsNotNone(Notificacao.query.filter_by(produto_id=item.id).first().resolved_at)
+
+    def test_delivery_retry_and_uncertain_state(self):
+        import smtplib
+        now=utcnow()
+        item=EmailDelivery(delivery_key='test-retry',user_id=self.user.id,kind='reset',
+            recipient=self.user.username,subject='Test',body='Test', next_attempt_at=now)
+        db.session.add(item)
+        db.session.commit()
+        self.app.config.update(MAIL_SERVER='smtp.example.test',MAIL_DEFAULT_SENDER='sender@example.test')
+        with patch('app.mail_service.send_message',side_effect=smtplib.SMTPConnectError(421,'Unavailable')) as send:
+            deliver_pending(now)
+            self.assertEqual((item.status,item.attempts),('pending',1))
+            deliver_pending(now)
+            self.assertEqual(send.call_count,1)
+        with patch('app.mail_service.send_message',side_effect=TimeoutError):
+            deliver_pending(now+timedelta(minutes=3))
+        self.assertEqual((item.status,item.body),('uncertain',''))
+
 
 class MigrationTests(unittest.TestCase):
-    def test_migration_preserves_existing_user(self):
-        from flask_migrate import upgrade
-        with TemporaryDirectory() as folder:
-            app=create_app({'TESTING':True,'SECRET_KEY':'migration-key-'*4,
-                'SQLALCHEMY_DATABASE_URI':'sqlite:///'+str(Path(folder)/'legacy.db')})
-            with app.app_context():
-                original=[table for table in db.metadata.sorted_tables if not table.name.startswith('email_')]
-                db.metadata.create_all(db.engine,tables=original)
-                user=Usuario(username='existing',role='gerente_geral')
-                user.set_password('Original-12345')
-                db.session.add(user)
-                db.session.commit()
-                upgrade(directory='migrations')
-                self.assertEqual(Usuario.query.count(),1)
-                self.assertEqual(EmailPreference.query.count(),0)
-                db.session.remove()
-                db.engine.dispose()
-
-
-if __name__ == '__main__':
-    unittest.main()
+    def test_install_empty_database_and_refuse_nonempty(self):
+        app=create_app({'TESTING':True,'SECRET_KEY':'migration-key-'*4,
+            'SQLALCHEMY_DATABASE_URI':'sqlite://', 'SCHEDULER_ENABLED':False})
+        with app.app_context():
+            result=app.test_cli_runner().invoke(args=['init-db'])
+            self.assertEqual(result.exit_code,0,result.output)
+            self.assertEqual(Usuario.query.count(),0)
+            self.assertEqual(EmailPreference.query.count(),0)
+            self.assertNotEqual(app.test_cli_runner().invoke(args=['init-db']).exit_code,0)
+            db.session.remove()
+            db.engine.dispose()

@@ -26,6 +26,7 @@ class SecurityTests(unittest.TestCase):
         user.set_password('senha-teste')
         db.session.add(user)
         produto = Produto(nome_produto='Produto', plu='1', quantidade=1,
+                          barcode='3017620422003', source_url='https://world.openfoodfacts.org/product/3017620422003',
                           validade=agora_brasil().date(), loja_id=outra.id, setor_id=setor.id)
         db.session.add(produto)
         db.session.commit()
@@ -35,6 +36,7 @@ class SecurityTests(unittest.TestCase):
     def tearDown(self):
         db.session.remove()
         db.drop_all()
+        db.engine.dispose()
         self.context.pop()
 
     def token(self):

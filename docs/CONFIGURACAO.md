@@ -1,129 +1,80 @@
-# Publicação, Gmail e alertas
+# Instalação V2 — banco totalmente novo
 
-## Antes de publicar esta versão
+Esta versão substitui o catálogo interno por consulta externa e usa um esquema novo. Não execute os antigos scripts com DROP TABLE. O banco anterior não precisa ser acessado.
 
-Esta alteração adiciona três tabelas: `email_preference`, `email_token` e
-`email_delivery`. Não modifica as colunas de produtos, usuários, lojas ou setores.
-As sessões antigas precisarão de novo login; trocas de senha invalidam sessões anteriores.
+## 1. Preparar o banco
 
-1. Mantenha um backup do banco antes da atualização.
-2. Configure `SCHEDULER_ENABLED=false` durante a migração.
-3. Instale as dependências de `requirements.txt`.
-4. No ambiente que acessa o banco existente, execute:
+Crie um PostgreSQL vazio no provedor escolhido. Escolha uma forma de instalar as tabelas:
 
-   ```sh
-   flask --app run db current
-   flask --app run db upgrade
-   ```
+- Execute `database/novo_banco.sql` no editor SQL do **novo banco**. O arquivo contém uma transação, tabelas, restrições, índices e a versão das migrações. Não inclui usuários ou senhas.
+- Ou configure `DATABASE_URL` localmente apontando para esse banco vazio e execute `python -m flask --app run init-db`. O comando recusa bancos que já tenham tabelas.
 
-   O repositório não tinha revisões de banco versionadas. A nova revisão parte da
-   instalação existente. Se `db current` indicar uma revisão desconhecida, recupere
-   os arquivos antigos de migração antes de continuar; não substitua o histórico
-   com `stamp`. Em um banco novo, crie o esquema inicial antes dessa migração.
-5. Reinicie o serviço com a nova versão.
+Não execute ambos: eles instalam o mesmo esquema. Para futuras versões, use `python -m flask --app run db upgrade`, seguindo as instruções da versão.
 
-A migração foi testada em uma cópia local SQLite com as tabelas originais e um
-usuário existente. Não foi executada no banco hospedado.
+## 2. Criar o primeiro acesso
 
-## Render gratuito para demonstração
+Com as dependências instaladas e o `.env` apontando para o **novo banco**:
 
-Configure `PUBLIC_BASE_URL=https://controle-validade-veneza-1.onrender.com` e
-`COOKIE_SECURE=true`. Deixe `SCHEDULER_ENABLED=false` e `MAIL_SERVER` vazio para
-testar dashboard, busca, câmera e preferências sem enviar mensagens.
+```powershell
+.\.venv\Scripts\python -m flask --app run create-admin
+```
 
-O [Render Free](https://render.com/docs/free) bloqueia saída nas portas SMTP
-25, 465 e 587 e pode suspender o serviço após 15 minutos sem tráfego. Por isso,
-Gmail SMTP e entregas pontuais não funcionam nesse plano. A fila pode ser consultada
-nos testes locais; nenhuma mensagem real é enviada pelos testes.
+O terminal pede o e-mail, a senha e sua confirmação, sem mostrar a senha. Use pelo menos 10 caracteres. O comando cria o primeiro gerente geral e os setores iniciais. Depois entre no site, cadastre lojas e usuários. Não há login ou senha padrão.
 
-## Gmail em hospedagem compatível
+No Render Free, execute esse comando no seu computador usando a URL externa de conexão do novo PostgreSQL. Não envie essa URL com senha em conversas nem a publique no Git. No Render, configure a conexão apropriada em `DATABASE_URL`.
 
-Na conta Google do remetente, ative a verificação em duas etapas e gere uma
-[senha de app](https://support.google.com/accounts/answer/185833?hl=pt-BR).
-Use essa senha em `MAIL_PASSWORD`, nunca a senha normal da conta.
+## 3. Configurar o Render
 
-No Render, abra **Environment** do serviço e cadastre os valores de `.env.example`:
+Instalação: `pip install -r requirements.txt`. Início: `gunicorn run:app --workers 1`.
 
-| Variável | Valor |
-|---|---|
-| PUBLIC_BASE_URL | https://controle-validade-veneza-1.onrender.com |
-| MAIL_SERVER | smtp.gmail.com |
-| MAIL_PORT | 587 |
-| MAIL_USE_TLS | true |
-| MAIL_USE_SSL | false |
-| MAIL_USERNAME | E-mail Gmail do remetente |
-| MAIL_PASSWORD | Senha de app do Google |
-| MAIL_DEFAULT_SENDER | Mesmo e-mail do remetente |
+| Variável em Environment | Valor |
+| --- | --- |
+| `DATABASE_URL` | Conexão do novo PostgreSQL |
+| `SECRET_KEY` | Sua chave aleatória já salva, com pelo menos 32 caracteres |
+| `PUBLIC_BASE_URL` | `https://controle-validade-veneza-1.onrender.com` |
+| `COOKIE_SECURE` | `true` |
+| `SCHEDULER_ENABLED` | `false` inicialmente |
+| `PRODUCT_API_USER_AGENT` | `VenezaValidade/2.0 (seu-email-de-contato)` |
 
-Não coloque credenciais no código nem envie senhas em mensagens.
+Não coloque a SECRET_KEY no código. Atualize código e conexão do banco no mesmo processo de publicação: a versão anterior não é compatível com este esquema.
 
-## Execução automática
+## 4. Produtos e câmera
 
-Para uma primeira instalação sempre ativa, execute um único processo (`python run.py`)
-com `SCHEDULER_ENABLED=true`. O processamento de e-mail ocorre a cada minuto,
-e a verificação interna de notificações continua às 8h. Não use vários workers
-com o agendador habilitado em todos.
+Em **Pesquisar produto**, digite nome/marca ou leia o código e toque em Pesquisar. Selecione o resultado e registre quantidade, validade, setor e lote. PLU interno é opcional.
 
-Alternativamente, mantenha o agendador desabilitado no servidor web e execute
-`flask --app run send-emails` a cada minuto em um único executor externo sempre ativo.
-Esse comando processa apenas os e-mails; a tarefa interna das 8h precisará de
-agendamento separado nessa arquitetura.
+A Open Food Facts não exige chave de API para consulta. O banco guarda seus lotes e um cache temporário; não existe catálogo editável. A busca ocorre ao clicar, não a cada letra. Há intervalo compartilhado entre consultas e cache de uma hora (cinco minutos para resultados vazios). Um código não encontrado não cria produto automaticamente. Veja `docs/APIS_PRODUTOS.md`.
 
-O fuso é America/Sao_Paulo. O envio fica elegível no minuto escolhido, diário ou
-no dia semanal selecionado. Se o serviço retornar mais tarde no mesmo dia,
-processará o envio atrasado. Dias anteriores não são repostos. Mudanças de horário
-após um envio passam a valer no próximo dia elegível.
+A câmera exige HTTPS e permissão do navegador. O código de barras comum identifica o produto; validade e quantidade continuam sendo informadas pela equipe.
 
-Cada usuário recebe no máximo um resumo agendado por data. Sem produtos, o envio
-é marcado como ignorado. Falhas comuns são tentadas até três vezes. Se o processo
-parar durante um envio, o registro fica `sending` para conferência do operador;
-não é reenviado automaticamente porque o SMTP pode já ter aceitado a mensagem.
-Não há garantia de entrega exatamente uma vez em falhas de rede após aceitação SMTP.
+## 5. Central de alertas
 
-## Preferências e recuperação
+- Avisos de lote registrado, mudança de status, proximidade (até 7 dias), vencimento hoje e vencido.
+- Prioridades, filtros, paginação, leitura individual ou de todos os avisos atuais. Abrir a central não marca tudo como lido.
+- Gerente e auxiliar veem sua loja; encarregado vê somente sua loja e setor. Gerentes geral e de trocas têm acesso global.
+- Cada pessoa tem sua própria leitura. Verificações não duplicam o mesmo evento. Mudança de data ou etapa do vencimento leva o aviso anterior ao histórico.
+- O botão de verificação manual atualiza a área do usuário, inclusive nos testes no Render Free.
 
-Em **Meu perfil e alertas**, cada usuário escolhe o destino, confirma o endereço,
-habilita os alertas, informa faixa de 0 a 365 dias e frequência/horário. Para trocar
-o endereço, precisa da senha atual e de uma nova confirmação. Encarregados recebem
-apenas sua loja e setor; gerente e auxiliar apenas sua loja; gerente geral e gerente
-de trocas têm visão global. O escopo é conferido novamente ao enviar.
+Os 7 dias da central são fixos. A faixa dos e-mails é independente e configurável por usuário.
 
-Os links de confirmação e senha expiram em 30 minutos e são de uso único. Abrir um
-link não o consome: é necessário enviar o formulário. Recuperação usa o e-mail
-armazenado em `username`; contas cujo usuário não é e-mail precisam ter o cadastro
-corrigido pelo gerente geral. O destino dos alertas não altera a identidade da conta.
+## 6. E-mails e recuperação de senha
 
-## Dashboard e catálogo
+No perfil, cada pessoa escolhe seu e-mail ou outro endereço, confirma o destinatário por link e define faixa de 0 a 365 dias, frequência diária ou semanal, dia e horário de São Paulo. E-mails exigem confirmação do endereço.
 
-O gráfico mensal soma unidades e informa registros. Ano e mês filtram o calendário
-e sua tabela. Os indicadores de vencidos e próximos vencimentos consideram todas
-as datas, respeitando loja e setor. Rankings agrupam pelo PLU e mostram as cinco
-maiores somas. Produtos excluídos deixam de aparecer; o sistema não mede perdas
-confirmadas ou vendas. Datas vencidas são anteriores a hoje, e a faixa futura inclui hoje.
+A fila mostra situação e tentativas no perfil. Permissões e configurações são revalidadas antes do envio. Falhas conhecidas permitem até três tentativas com espera crescente. Se a conexão cair sem confirmação do SMTP, fica **Não confirmado**, sem repetição automática que poderia duplicá-lo. Novos links de senha/confirmação podem ser solicitados após a espera de segurança.
 
-Em **Datas Curtas**, digite nome, PLU ou código, ou toque em **Ler código com a câmera**.
-O navegador solicita permissão e tenta usar a câmera traseira. Ao ler, selecione o
-produto e informe quantidade e validade. Produtos ausentes precisam ser cadastrados
-no catálogo. O leitor não descobre automaticamente a validade do lote.
+No máximo um resumo por pessoa por dia. Sem produtos na faixa, fica **Sem produtos**. Se o serviço acordar depois do horário, pode enviar ainda naquele dia; resumos anteriores expiram. “Enviado” significa aceito pelo SMTP, sem garantia de chegada à caixa de entrada ou leitura.
 
-API autenticada pela sessão existente:
+Configure Gmail conforme `.env.example`: `smtp.gmail.com`, porta 587 com TLS, usuário remetente e [senha de app do Google](https://support.google.com/accounts/answer/185833?hl=pt-BR), quando disponível. Não publique credenciais.
 
-- `GET /api/catalogo?term=arroz`: busca nome, PLU e três códigos cadastrados (até 20 resultados).
-- `GET /api/buscar-produto/0789000000012`: correspondência exata, preservando zeros iniciais.
-- `GET /api/buscar-catalogo` e `/api/buscar-produtos-catalogo`: aliases da busca.
+**Render Free:** [a documentação](https://render.com/docs/free) informa suspensão por ociosidade e bloqueio de SMTP nas portas 25, 465 e 587. Salvar as configurações não torna o Gmail funcional nesse plano. Esta integração usa SMTP e exige hospedagem que permita a conexão. Envio por HTTPS é outra alternativa, ainda não implementada.
 
-Nenhuma base comercial externa está integrada. Os dados vêm do catálogo Veneza.
-A câmera exige HTTPS (ou localhost), permissão do navegador e um dispositivo compatível.
+Em infraestrutura sempre ativa, escolha somente uma opção:
 
-## Testar sem produção
+1. Um único processo com `SCHEDULER_ENABLED=true`: verifica validades a cada 5 minutos e e-mails a cada minuto.
+2. Aplicação com `SCHEDULER_ENABLED=false` e agendador externo executando `python -m flask --app run process-notifications` a cada minuto, com o mesmo banco e variáveis. Esse comando processa avisos e e-mails.
 
-`python -m unittest discover -s tests -v` testa segurança, preferências, calendário,
-escopo dos alertas, recuperação, API e migração com dados isolados.
+O processo responsável também precisa ter acesso ao Gmail. Não há garantia de envio às 9h se ele estiver desligado ou dormindo.
 
-Com Playwright e Chrome disponíveis, `node tests/ui_check.cjs` verifica a interface
-contra a prévia local já iniciada. Usa câmera simulada; a leitura óptica em Android
-e iPhone deve ser validada com o telefone real.
+## Validação
 
-`python tests/preview_app.py` abre a prévia em `http://127.0.0.1:8011`, com banco em
-memória e envio desabilitado. Usuários fictícios: `demo`, `setor`, `gerente`, `auxiliar`,
-`trocas`. Senha de demonstração: `Demo-veneza-2026`. Nunca publique esse servidor de prévia.
+Testes em SQLite em memória cobrem instalação, autenticação/CSRF, escopo, tokens, agenda, fila, duplicidades e API com falhas simuladas. Interface verificada em 320, 390, 768 e 1440 pixels. Consulta real por código e nome verificada no ambiente de testes da Open Food Facts. Câmera física e Gmail real precisam de validação na implantação. O SQL PostgreSQL é gerado dos modelos e não foi executado no banco remoto do usuário.

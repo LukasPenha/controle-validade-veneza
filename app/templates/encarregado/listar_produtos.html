@@ -51,7 +51,7 @@
                             
                             <td data-label="Produto">
                                 <div class="fw-bold">{{ produto.nome_produto }}</div>
-                                <small class="text-muted d-md-none">PLU: {{ produto.plu }}</small>
+                                <small class="text-muted d-md-none">Código: {{ produto.barcode }}</small>
                             </td>
                             
                             <td data-label="Validade">
@@ -136,8 +136,8 @@
                     </div>
                     <div class="row">
                         <div class="col-6 mb-3">
-                             <label class="form-label text-muted small">PLU</label>
-                             <input type="text" name="plu" class="form-control" value="{{ produto.plu }}" readonly>
+                             <label class="form-label text-muted small">Código</label>
+                             <input type="text" name="plu" class="form-control" value="{{ produto.barcode }}" readonly>
                         </div>
                         <div class="col-6 mb-3">
                             <label class="form-label text-muted small">Quantidade</label>

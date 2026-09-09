@@ -5,7 +5,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from datetime import date, timedelta
 from app import create_app, db
-from app.models import Usuario, Loja, Setor, Produto, ProdutoCatalogo, agora_brasil
+from app.models import Usuario, Loja, Setor, Produto, agora_brasil
+from app.notifications import sync_expiry_notifications
+import app.product_lookup as provider
+
+# Only this isolated preview replaces the network with an explicit fixture.
+provider.lookup_products = lambda term: [provider.normalize_product({'code':'7890000000000', 'product_name':'Arroz de demonstração'})]
 
 app = create_app({'SECRET_KEY': 'preview-only-secret-' * 3, 'SQLALCHEMY_DATABASE_URI': 'sqlite://',
                   'SCHEDULER_ENABLED': False, 'MAIL_SERVER': '', 'SESSION_COOKIE_SECURE': False})
@@ -22,16 +27,15 @@ with app.app_context():
     today = agora_brasil().date()
     names = ['Arroz branco tipo 1 · 5 kg', 'Café torrado tradicional · 500 g', 'Leite integral · 1 L',
              'Biscoito cream cracker · 400 g', 'Molho de tomate · 300 g', 'Suco de uva integral · 1 L']
-    for i, name in enumerate(names):
-        db.session.add(ProdutoCatalogo(nome_produto=name, plu=str(100+i), barcode_1=f'78900000000{i:02d}'))
     for month in range(1, 13):
         for i, name in enumerate(names):
-            db.session.add(Produto(nome_produto=name, plu=str(100+i), quantidade=(month*17+i*13)%120+12,
+            db.session.add(Produto(nome_produto=name, plu=str(100+i), barcode=f'78900000000{i:02d}', source_url=f'https://world.openfoodfacts.org/product/78900000000{i:02d}', quantidade=(month*17+i*13)%120+12,
                 validade=date(today.year, month, 15), loja_id=stores[i%3].id, setor_id=sectors[i%3].id))
     for i, name in enumerate(names):
-        db.session.add(Produto(nome_produto=name, plu=str(100+i), quantidade=36+i*12,
+        db.session.add(Produto(nome_produto=name, plu=str(100+i), barcode=f'78900000000{i:02d}', source_url=f'https://world.openfoodfacts.org/product/78900000000{i:02d}', quantidade=36+i*12,
             validade=today+timedelta(days=i), loja_id=stores[0].id, setor_id=sectors[0].id))
     db.session.commit()
+    sync_expiry_notifications()
 
 if __name__ == '__main__':
     from waitress import serve
