@@ -28,6 +28,7 @@
                         <td>{{ produto.criado_por.nome_display }}</td>
                         <td class="text-center">
                             <form action="{{ url_for('routes.excluir_produto', produto_id=produto.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Este item será excluído permanentemente. Deseja continuar?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i> Excluir</button>
                             </form>
                         </td>

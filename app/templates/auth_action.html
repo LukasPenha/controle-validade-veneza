@@ -1,0 +1,10 @@
+{% extends 'auth_base.html' %}
+{% block form %}
+{% if not valid %}<h2>Este link não está disponível</h2><p class="text-muted">Ele expirou ou já foi utilizado. Solicite um novo link.</p>{% else %}
+<span class="eyebrow mb-2">SUA CONTA</span><h2>{{ 'Recuperar acesso' if mode == 'forgot' else ('Crie sua nova senha' if mode == 'reset' else 'Confirme seu e-mail') }}</h2>
+<p class="text-muted small">{{ 'Informe o e-mail usado como usuário no sistema.' if mode == 'forgot' else ('Escolha uma senha com pelo menos 10 caracteres.' if mode == 'reset' else 'Confirme para receber os alertas que você configurou.') }}</p>
+<form method="POST"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% if mode == 'forgot' %}<label for="email" class="form-label">E-mail da conta</label><input id="email" name="email" type="email" class="form-control mb-3" autocomplete="email" maxlength="254" required>{% elif mode == 'reset' %}<label for="password" class="form-label">Nova senha</label><input id="password" name="password" type="password" autocomplete="new-password" class="form-control mb-3" minlength="10" required><label for="confirmation" class="form-label">Confirme a nova senha</label><input id="confirmation" name="confirmation" type="password" autocomplete="new-password" class="form-control mb-3" minlength="10" required>{% endif %}
+<button type="submit" class="btn btn-primary w-100">{{ 'Enviar link de recuperação' if mode == 'forgot' else ('Salvar nova senha' if mode == 'reset' else 'Confirmar meu e-mail') }}</button></form>{% endif %}
+<a href="{{ url_for('auth.login') }}" class="small mt-4">Voltar para entrar</a>{% if not valid %}<a href="{{ url_for('auth.forgot_password') }}" class="small mt-3">Solicitar recuperação de senha</a>{% endif %}
+{% endblock %}

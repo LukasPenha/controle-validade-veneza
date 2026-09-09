@@ -10,17 +10,20 @@
     <div class="col-md-8 offset-md-2">
         <div class="card">
             <div class="card-body">
-                <h5 class="card-title">Buscar Produto no Estoque</h5>
+                <h5 class="card-title">Encontre o produto no catálogo</h5>
                 <p class="card-text text-muted">
-                    Digite o nome, PLU ou código de barras do produto que você deseja marcar para que o gerente avalie a rebaixa. Apenas produtos ativos e não vencidos aparecerão na busca.
+                    Pesquise por nome, PLU ou código de barras. Selecione o produto para informar a quantidade e a validade do lote.
                 </p>
                 <div class="mb-3">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" id="productSearchInput" class="form-control" placeholder="Digite para buscar...">
+                        <input type="search" id="productSearchInput" class="form-control" placeholder="Nome, PLU ou código de barras" aria-label="Buscar no catálogo" autocomplete="off">
                     </div>
                 </div>
-                <div id="searchResultsContainer">
+                <div class="d-flex gap-2 flex-wrap mb-3"><button type="button" class="btn btn-outline-primary" id="cameraStart"><i class="bi bi-camera me-2"></i>Ler código com a câmera</button><button type="button" class="btn btn-outline-secondary" id="cameraStop" hidden>Fechar câmera</button><a class="btn btn-link" href="{{ url_for('routes.adicionar_catalogo') }}">Cadastrar novo produto</a></div>
+                <video id="catalogVideo" playsinline muted hidden style="width:100%;max-height:320px;border-radius:12px;object-fit:cover"></video>
+                <p id="cameraStatus" role="status" class="small text-muted"></p>
+                <div id="searchResultsContainer" aria-live="polite">
                     </div>
             </div>
         </div>
@@ -30,4 +33,6 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/datas_curtas_search.js') }}"></script>
+<script src="{{ url_for('static', filename='js/zxing.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/catalog_camera.js') }}"></script>
 {% endblock %}

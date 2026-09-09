@@ -1,6 +1,8 @@
 from . import db, bcrypt, login_manager
 from flask_login import UserMixin
 from datetime import datetime
+import hashlib
+import hmac
 import pytz  # <--- IMPORTANTE: Import novo
 
 # Função auxiliar para pegar a hora certa
@@ -10,7 +12,14 @@ def agora_brasil():
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Usuario.query.get(int(user_id))
+    try:
+        identity, _ = user_id.split(':', 1)
+        user = db.session.get(Usuario, int(identity))
+        if user and hmac.compare_digest(user.get_id(), user_id):
+            return user
+        return None
+    except (TypeError, ValueError):
+        return None
 
 notificacao_lida = db.Table('notificacao_lida',
     db.Column('usuario_id', db.Integer, db.ForeignKey('usuario.id'), primary_key=True),
@@ -56,6 +65,10 @@ class Usuario(db.Model, UserMixin):
     setor_id = db.Column(db.Integer, db.ForeignKey('setor.id'), nullable=True)
     produtos_criados = db.relationship('Produto', backref='criado_por', lazy=True, cascade="all, delete-orphan")
     notificacoes_lidas = db.relationship('Notificacao', secondary=notificacao_lida, back_populates='lido_por', lazy='dynamic')
+
+    def get_id(self):
+        stamp = hashlib.sha256(self.password_hash.encode()).hexdigest()
+        return f'{self.id}:{stamp}'
 
     def set_password(self, password):
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')

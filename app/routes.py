@@ -126,18 +126,8 @@ def notifications():
 def dashboard_gerente_geral():
     if current_user.role != 'gerente_geral': 
         return redirect(url_for('routes.index'))
-    try:
-        total_lojas = Loja.query.count()
-        total_usuarios = Usuario.query.filter(Usuario.role != 'gerente_geral').count()
-        total_catalogo = ProdutoCatalogo.query.count()
-    except Exception as e:
-        print(f"Erro ao contar dados: {e}")
-        total_lojas = 0; total_usuarios = 0; total_catalogo = 0
-
-    return render_template('geral/dashboard.html', 
-                           total_lojas=total_lojas, 
-                           total_usuarios=total_usuarios, 
-                           total_catalogo=total_catalogo)
+    from .analytics import dashboard_data
+    return render_template('geral/dashboard.html', **dashboard_data())
 
 @routes.route('/catalogo')
 @login_required
@@ -430,7 +420,7 @@ def pagina_produtos_vencidos():
 def bulk_action():
     action = request.form.get('action'); selected_ids = request.form.getlist('selected_ids')
     if not selected_ids:
-        flash('Nenhum item selecionado.', 'warning'); return redirect(request.referrer)
+        flash('Nenhum item selecionado.', 'warning'); return redirect(url_for('routes.index'))
     produtos = Produto.query.filter(Produto.id.in_(selected_ids)).all()
     if action == 'delete':
         count = 0
@@ -439,7 +429,7 @@ def bulk_action():
                 db.session.delete(produto); count += 1
         flash(f'{count} produtos foram excluídos.', 'success')
     db.session.commit()
-    return redirect(request.referrer)
+    return redirect(url_for('routes.index'))
 
 @routes.route('/produtos/<int:produto_id>/editar', methods=['POST'])
 @login_required
@@ -461,7 +451,7 @@ def editar_produto(produto_id):
 def alterar_status(produto_id):
     if current_user.role != 'gerente': return redirect(url_for('routes.index'))
     produto = Produto.query.get_or_404(produto_id)
-    if produto.loja_id != current_user.loja_id: return redirect(request.referrer)
+    if produto.loja_id != current_user.loja_id: return redirect(url_for('routes.index'))
     novo_status = request.form.get('status')
     if novo_status in ['Para Rebaixa', 'Em Rebaixa']:
         produto.status = novo_status
@@ -470,7 +460,7 @@ def alterar_status(produto_id):
         db.session.commit()
         flash(f'Status do produto {produto.nome_produto} alterado.', 'success')
     else: flash('Status inválido.', 'danger')
-    return redirect(request.referrer or url_for('routes.produtos_para_rebaixa'))
+    return redirect(url_for('routes.index'))
 
 @routes.route('/produtos/<int:produto_id>/excluir', methods=['POST'])
 @login_required
@@ -482,7 +472,7 @@ def excluir_produto(produto_id):
     db.session.delete(produto)
     db.session.commit()
     flash('Produto excluído com sucesso!', 'success')
-    return redirect(request.referrer or url_for('routes.index'))
+    return redirect(url_for('routes.index'))
 
 # --- ROTAS PARA DATAS CURTAS ---
 @routes.route('/datas-curtas')
@@ -509,14 +499,23 @@ def cadastrar_rebaixa():
     if current_user.role not in ['gerente', 'encarregado_setor', 'auxiliar_gestao']:
         flash('Você não tem permissão para esta ação.', 'danger')
         return redirect(url_for('routes.index'))
-    nome_produto = request.form.get('nome_produto'); plu = request.form.get('plu'); quantidade = request.form.get('quantidade')
-    validade_str = request.form.get('validade'); motivo_rebaixa = request.form.get('motivo_rebaixa'); setor_id = request.form.get('setor_id')
-    if current_user.role == 'encarregado_setor': setor_id = current_user.setor_id
-    if not all([quantidade, validade_str, setor_id]):
-        flash('Quantidade, validade e setor são obrigatórios.', 'danger'); return redirect(request.referrer)
+    try:
+        catalogo = db.session.get(ProdutoCatalogo, int(request.form.get('catalogo_id', '')))
+        quantidade = int(request.form.get('quantidade', ''))
+        validade = date.fromisoformat(request.form.get('validade', ''))
+        setor_id = current_user.setor_id if current_user.role == 'encarregado_setor' else int(request.form.get('setor_id', ''))
+        if not catalogo or not catalogo.plu or not 1 <= quantidade <= 2147483647 or not current_user.loja_id or not db.session.get(Setor, setor_id):
+            raise ValueError()
+        motivo_rebaixa = request.form.get('motivo_rebaixa', '').strip()
+        if len(motivo_rebaixa) > 255:
+            raise ValueError()
+    except (ValueError, TypeError):
+        flash('Confira o produto do catálogo, quantidade positiva, validade e setor.', 'danger')
+        return redirect(url_for('routes.datas_curtas'))
+    nome_produto, plu = catalogo.nome_produto, catalogo.plu
     novo_produto = Produto(
         nome_produto=nome_produto, plu=plu, quantidade=int(quantidade),
-        validade=datetime.strptime(validade_str, '%Y-%m-%d').date(),
+        validade=validade,
         motivo_rebaixa=motivo_rebaixa, setor_id=int(setor_id),
         loja_id=current_user.loja_id, criado_por_id=current_user.id,
         status='Para Rebaixa'
@@ -532,11 +531,8 @@ def cadastrar_rebaixa():
 @routes.route('/api/buscar-produtos-catalogo')
 @login_required
 def api_buscar_produtos_catalogo():
-    search_term = request.args.get('term', '')
-    if not search_term or len(search_term) < 3: return jsonify([])
-    query = ProdutoCatalogo.query.filter(or_(func.lower(ProdutoCatalogo.nome_produto).contains(func.lower(search_term)), func.lower(ProdutoCatalogo.plu).contains(func.lower(search_term)), ProdutoCatalogo.barcode_1.contains(search_term), ProdutoCatalogo.barcode_2.contains(search_term), ProdutoCatalogo.barcode_3.contains(search_term))).limit(10).all()
-    results = [{'id': item.id, 'nome': item.nome_produto, 'plu': item.plu, 'barcode': item.barcode_1 or item.barcode_2 or item.barcode_3} for item in query]
-    return jsonify(results)
+    from .catalog_api import search_catalog
+    return jsonify(search_catalog(request.args.get('term', '')))
 
 # --- ROTAS DE RELATÓRIOS (PDFs) ---
 @routes.route('/encarregado/relatorio/pdf')
@@ -616,7 +612,7 @@ def gerar_relatorio_pdf():
         query = query.filter(Produto.data_cadastro.between(start_datetime, end_datetime))
         subtitulo = f"Produtos cadastrados de {data_inicio_str} a {data_fim_str}"
     else:
-        flash('É necessário preencher um intervalo de datas ou um termo de busca.', 'danger'); return redirect(request.referrer)
+        flash('É necessário preencher um intervalo de datas ou um termo de busca.', 'danger'); return redirect(url_for('routes.index'))
     
     if loja_id and loja_id != 'todas':
         query = query.filter(Produto.loja_id == int(loja_id)); loja_obj = Loja.query.get(int(loja_id)); titulo = f"Relatório da Loja: {loja_obj.nome}"

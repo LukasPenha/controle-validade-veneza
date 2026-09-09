@@ -62,6 +62,7 @@
         <div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">Editar Item do Catálogo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('routes.editar_catalogo', item_id=item.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-2"><label class="form-label">Nome do Produto</label><input type="text" name="nome_produto" class="form-control" value="{{ item.nome_produto }}" required></div>
                     <div class="mb-2"><label class="form-label">PLU</label><input type="text" name="plu" class="form-control" value="{{ item.plu or '' }}"></div>
@@ -90,7 +91,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('routes.excluir_catalogo', item_id=item.id) }}" method="POST"><button type="submit" class="btn btn-danger">Excluir</button></form>
+                <form action="{{ url_for('routes.excluir_catalogo', item_id=item.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-danger">Excluir</button></form>
             </div>
         </div>
     </div>

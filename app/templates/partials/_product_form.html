@@ -18,6 +18,7 @@
 
         <h6><i class="bi bi-pencil-square"></i> Passo 2: Preencher os Detalhes do Produto</h6>
         <form method="POST" action="{{ url_for('routes.cadastrar_produto') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" id="currentUserRole" value="{{ current_user.role }}">
             <input type="hidden" name="barcode" id="barcodeFormInput">
             

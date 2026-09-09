@@ -65,6 +65,7 @@
             .table-responsive-stack td input[type="checkbox"] { transform: scale(1.3); }
         }
     </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/workspace.css') }}">
 </head>
 <body>
     <header class="navbar navbar-light sticky-top bg-white flex-md-nowrap p-0 shadow-sm">
@@ -73,12 +74,15 @@
                 <i class="bi bi-list fs-3"></i>
             </button>
             <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3 fs-6 text-dark" href="{{ url_for('routes.index') }}">
-                <strong>Controle de Validade</strong>
+                <strong>VENEZA <span class="d-none d-sm-inline fw-normal text-muted">/ Validade</span></strong>
             </a>
         </div>
         <div class="navbar-nav">
             <div class="nav-item text-nowrap d-flex align-items-center">
-                <a class="nav-link text-dark px-3" href="{{ url_for('auth.logout') }}">Sair <i class="bi bi-box-arrow-right"></i></a>
+                <form method="POST" action="{{ url_for('auth.logout') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="nav-link text-dark px-3 border-0 bg-transparent" type="submit">Sair <i class="bi bi-box-arrow-right"></i></button>
+                </form>
             </div>
         </div>
     </header>
@@ -129,6 +133,7 @@
                              <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_trocas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_trocas') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
                              <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Geral)</a></li>
                         {% endif %}
+                        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'profile.settings' %}active{% endif %}" href="{{ url_for('profile.settings') }}"><i class="bi bi-sliders2"></i> Meu perfil e alertas</a></li>
                     </ul>
 
                     <div class="sidebar-footer">
@@ -137,7 +142,7 @@
                             <label class="form-check-label" for="themeSwitcher"><i id="themeIcon" class="bi"></i> <span id="themeText"></span></label>
                         </div>
                         <div class="version">
-                            v.1.2.0 (Mobile Ready)
+                            VENEZA · Gestão de validade
                         </div>
                     </div>
                 </div>
@@ -179,6 +184,7 @@
             });
         });
     </script>
+    <script src="{{ url_for('static', filename='js/workspace.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

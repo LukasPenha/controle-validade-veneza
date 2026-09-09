@@ -1,97 +1,24 @@
 {% extends 'base.html' %}
-{% block title %}Dashboard Geral{% endblock %}
-
+{% block title %}Visão executiva · Veneza{% endblock %}
+{% macro dashboard_url(m=0, p=1, status='all') %}{{ url_for('routes.dashboard_gerente_geral', year=year, month=m, page=p, mode=status, store=store, sector=sector, horizon=horizon) }}{% endmacro %}
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-4 border-bottom">
-    <h1 class="h2">Visão Geral</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="text-muted">Bem-vindo, <strong>{{ current_user.username }}</strong></div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4 mb-4">
-        <div class="card card-stats border-left-primary h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total de Lojas</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_lojas|default('0') }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-shop fs-1 text-gray-300 opacity-25"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card card-stats border-left-success h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Usuários Ativos</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_usuarios|default('0') }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-people-fill fs-1 text-gray-300 opacity-25"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="col-md-4 mb-4">
-        <div class="card card-stats border-left-warning h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Catálogo Master</div>
-                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ total_catalogo|default('0') }}</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="bi bi-box-seam fs-1 text-gray-300 opacity-25"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mt-4">
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Acesso Rápido</h6>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-2">
-                    <a href="{{ url_for('routes.adicionar_catalogo') }}" class="btn btn-outline-primary text-start">
-                        <i class="bi bi-plus-circle me-2"></i> Cadastrar Novo Item no Catálogo
-                    </a>
-                    <a href="{{ url_for('routes.gerenciar_lojas') }}" class="btn btn-outline-dark text-start">
-                        <i class="bi bi-shop me-2"></i> Gerenciar Unidades
-                    </a>
-                    <a href="{{ url_for('routes.relatorio_gerente_geral') }}" class="btn btn-outline-success text-start">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i> Extrair Relatórios Gerenciais
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="col-lg-6 mb-4">
-        <div class="card shadow-sm h-100">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-secondary">Status do Sistema</h6>
-            </div>
-            <div class="card-body">
-                <p>O sistema está operando normalmente com banco de dados na nuvem (Supabase).</p>
-                <hr>
-                <small class="text-muted">Último backup: Automático (Cloud)</small>
-            </div>
-        </div>
-    </div>
-</div>
+<div class="page-heading"><div><span class="eyebrow">INTELIGÊNCIA DE ESTOQUE</span><h1>Visão executiva<span class="heading-dot">.</span></h1><p>Antecipe vencimentos. Direcione a próxima ação.</p></div><span class="date-chip"><i class="bi bi-calendar3"></i> {{ today.strftime('%d.%m.%Y') }}</span></div>
+<section class="executive-banner"><div><span class="eyebrow">SEU RADAR DE VALIDADE</span><h2>{{ urgent.units }} unidades precisam<br>de atenção nos próximos 7 dias.</h2><p>{{ urgent.records }} registros nas lojas e setores selecionados. O cuidado de hoje protege o resultado de amanhã.</p></div><a href="{{ url_for('routes.dashboard_gerente_geral', year=today.year, horizon=7, store=store, sector=sector, mode='soon') }}#details" class="btn btn-light">Consultar produtos <i class="bi bi-arrow-up-right ms-2"></i></a></section>
+<form method="GET" class="dashboard-filters" aria-label="Filtros do dashboard">
+<div><label for="year">Ano do calendário</label><input id="year" class="form-control" name="year" type="number" min="2000" max="2100" value="{{ year }}"></div>
+<div><label for="store">Loja</label><select id="store" class="form-select" name="store"><option value="0">Todas as lojas</option>{% for item in stores %}<option value="{{ item.id }}" {% if store == item.id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
+<div><label for="sector">Setor</label><select id="sector" class="form-select" name="sector"><option value="0">Todos os setores</option>{% for item in sectors %}<option value="{{ item.id }}" {% if sector == item.id %}selected{% endif %}>{{ item.nome }}</option>{% endfor %}</select></div>
+<div><label for="horizon">Próximos vencimentos</label><select id="horizon" class="form-select" name="horizon">{% for days in [7,15,30,60,90] %}<option value="{{ days }}" {% if horizon == days %}selected{% endif %}>Até {{ days }} dias</option>{% endfor %}</select></div><button class="btn btn-primary" type="submit"><i class="bi bi-sliders2 me-2"></i>Aplicar</button></form>
+<div class="metric-grid">{% for label, data, icon, tone, caption in [('Unidades no ano',yearly,'box-seam','teal',year|string),('Já vencidas',expired,'calendar-x','red','Todos os anos'),('Próximas de vencer',soon,'hourglass-split','amber','Até ' ~ horizon ~ ' dias'),('Atenção imediata',urgent,'lightning-charge','purple','Hoje até 7 dias')] %}
+<article class="metric-card"><div class="metric-top"><span>{{ label }}</span><i class="bi bi-{{ icon }} icon-{{ tone }}"></i></div><strong>{{ data.units }}</strong><div><span>{{ data.records }} registros</span><small>{{ caption }}</small></div></article>{% endfor %}</div>
+<section class="panel mt-4"><div class="panel-heading"><div><span class="eyebrow">PLANEJAMENTO ANUAL</span><h2>Vencimentos por mês</h2></div><span class="legend">● Unidades · {{ year }}</span></div><p class="text-muted small">Selecione um mês para consultar os registros. Meses sem cadastro aparecem zerados.</p><div class="month-chart" aria-label="Unidades por mês">
+{% for bar in bars %}<a class="month-column {% if month == bar.month %}selected{% endif %}" href="{{ dashboard_url(bar.month) }}#details" aria-label="{{ bar.label }}: {{ bar.units }} unidades em {{ bar.records }} registros"><span class="bar-value">{{ bar.units }}</span><div class="bar-track"><div class="bar-fill" style="height:{{ bar.height }}%"></div></div><span class="bar-label">{{ bar.label }}</span></a>{% endfor %}</div></section>
+<div class="ranking-grid mt-4">{% for title, subtitle, rows, tone in [('Vencidos com maior volume','Unidades vencidas ainda cadastradas',expired_ranking,'red'),('No radar de vencimento','Unidades com validade até ' ~ horizon ~ ' dias',soon_ranking,'teal')] %}
+<section class="panel"><div class="panel-heading"><div><span class="eyebrow">TOP 5 · POR PLU</span><h2>{{ title }}</h2></div><i class="bi bi-bar-chart-line icon-{{ tone }}"></i></div><p class="text-muted small">{{ subtitle }} · todos os anos</p>
+{% for item in rows %}<div class="ranking-row"><span class="rank-number">{{ '%02d'|format(loop.index) }}</span><div class="rank-product"><strong>{{ item.name }}</strong><small>PLU {{ item.plu }} · {{ item.records }} registros</small><div class="rank-track"><span class="rank-fill bg-{{ tone }}" style="width:{{ (item.units / rows[0].units * 100) if rows[0].units > 0 else 0 }}%"></span></div></div><strong class="rank-quantity">{{ item.units }}<small>unidades</small></strong></div>{% else %}<div class="empty-state"><i class="bi bi-check2-circle"></i><p>Nenhum produto nesta faixa.</p><small>Os dados aparecerão conforme os cadastros.</small></div>{% endfor %}</section>{% endfor %}</div>
+<section class="panel mt-4" id="details"><div class="panel-heading"><div><span class="eyebrow">DO INDICADOR À AÇÃO</span><h2>Produtos {{ 'de ' ~ bars[month-1].label if month else 'do ano' }} · {{ year }}</h2></div><span class="date-chip">{{ products.total }} registros</span></div>
+<div class="filter-tabs"><a class="{% if mode == 'all' %}active{% endif %}" href="{{ dashboard_url(month) }}#details">Todos</a><a class="{% if mode == 'expired' %}active{% endif %}" href="{{ dashboard_url(month, status='expired') }}#details">Vencidos</a><a class="{% if mode == 'soon' %}active{% endif %}" href="{{ dashboard_url(month, status='soon') }}#details">Próximos {{ horizon }} dias</a>{% if month %}<a href="{{ dashboard_url() }}#details">Limpar mês ×</a>{% endif %}</div>
+<div class="table-responsive"><table class="table align-middle"><thead><tr><th>Produto / PLU</th><th>Loja / Setor</th><th>Unidades</th><th>Validade</th><th>Situação</th></tr></thead><tbody>{% for product in products.items %}<tr><td><strong>{{ product.nome_produto }}</strong><small class="d-block text-muted">{{ product.plu }}</small></td><td>{{ product.loja.nome }}<small class="d-block text-muted">{{ product.setor.nome }}</small></td><td>{{ product.quantidade }}</td><td>{{ product.validade.strftime('%d/%m/%Y') }}</td><td>{% if product.validade < today %}<span class="status-pill expired">Vencido</span>{% elif (product.validade - today).days <= horizon %}<span class="status-pill soon">{{ (product.validade - today).days }} dias</span>{% else %}<span class="status-pill">No prazo</span>{% endif %}</td></tr>{% else %}<tr><td colspan="5" class="text-center py-5 text-muted">Nenhum produto para os filtros selecionados.</td></tr>{% endfor %}</tbody></table></div>
+{% if products.pages > 1 %}<nav class="d-flex justify-content-between align-items-center mt-3" aria-label="Páginas de produtos">{% if products.has_prev %}<a class="btn btn-outline-primary" href="{{ dashboard_url(month, products.prev_num, mode) }}#details">Anterior</a>{% else %}<span></span>{% endif %}<span>{{ products.page }} de {{ products.pages }}</span>{% if products.has_next %}<a class="btn btn-outline-primary" href="{{ dashboard_url(month, products.next_num, mode) }}#details">Próxima</a>{% endif %}</nav>{% endif %}</section>
+<p class="dashboard-note"><i class="bi bi-info-circle me-1"></i> Quantidades representam unidades dos registros atuais. Produtos excluídos não compõem o histórico; vencimento não equivale a perda confirmada.</p>
 {% endblock %}

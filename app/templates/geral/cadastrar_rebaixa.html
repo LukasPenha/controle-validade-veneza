@@ -22,6 +22,7 @@
                 <p class="text-muted">Preencha a quantidade e a data de validade para o lote deste produto que precisa ser rebaixado. Ele será enviado para aprovação do gerente.</p>
 
                 <form method="POST" action="{{ url_for('routes.cadastrar_rebaixa') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="catalogo_id" value="{{ catalogo_item.id }}">
                     <input type="hidden" name="nome_produto" value="{{ catalogo_item.nome_produto }}">
                     <input type="hidden" name="plu" value="{{ catalogo_item.plu or '' }}">
@@ -41,7 +42,7 @@
                     <div class="row g-3">
                         <div class="col-md-6 mb-3">
                             <label for="quantidade" class="form-label">Quantidade</label>
-                            <input type="number" id="quantidade" name="quantidade" class="form-control" required>
+                            <input type="number" id="quantidade" name="quantidade" min="1" max="2147483647" class="form-control" required>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="validade" class="form-label">Data de Validade</label>

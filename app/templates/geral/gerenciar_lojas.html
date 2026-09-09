@@ -53,6 +53,7 @@
         <div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">Cadastrar Nova Loja</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('routes.gerenciar_lojas') }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-2"><label class="form-label">Nome da Loja</label><input type="text" name="nome" class="form-control" required></div>
                     <div class="mb-2"><label class="form-label">CNPJ (Opcional)</label><input type="text" name="cnpj" class="form-control"></div>
@@ -75,6 +76,7 @@
         <div class="modal-content">
             <div class="modal-header"><h5 class="modal-title">Editar Loja</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form action="{{ url_for('routes.editar_loja', loja_id=loja.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-body">
                     <div class="mb-2"><label class="form-label">Nome da Loja</label><input type="text" name="nome" class="form-control" value="{{ loja.nome }}" required></div>
                     <div class="mb-2"><label class="form-label">CNPJ (Opcional)</label><input type="text" name="cnpj" class="form-control" value="{{ loja.cnpj or '' }}"></div>
@@ -101,7 +103,8 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('routes.excluir_loja', loja_id=loja.id) }}" method="POST"><button type="submit" class="btn btn-danger">Excluir</button></form>
+                <form action="{{ url_for('routes.excluir_loja', loja_id=loja.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="btn btn-danger">Excluir</button></form>
             </div>
         </div>
     </div>

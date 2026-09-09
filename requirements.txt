@@ -12,3 +12,4 @@ python-dotenv
 waitress
 Flask-Migrate
 pytz
+Flask-WTF>=1.2.2,<2
