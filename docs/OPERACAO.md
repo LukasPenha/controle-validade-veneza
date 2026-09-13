@@ -81,8 +81,11 @@ Para recuperação real, baixe o artefato, descriptografe com GnuPG (senha solic
 
 ```text
 gpg --output veneza.dump --decrypt veneza.dump.gpg
+psql --dbname=BANCO_NOVO -X -v ON_ERROR_STOP=1 -c "DROP SCHEMA IF EXISTS public RESTRICT"
 pg_restore --exit-on-error --no-owner --no-acl --dbname=BANCO_NOVO veneza.dump
 ```
+
+O dump inclui a criação do schema `public`. O comando anterior remove somente esse schema vazio no **banco novo de recuperação**; `RESTRICT` recusa a operação se houver objetos dependentes. Se houver erro, pare e confira o destino. Não use `CASCADE` nem execute esse preparo no banco de produção.
 
 Configure a conexão de restauração por variáveis de ambiente PostgreSQL; não escreva senha no comando. Após conferir usuários, lotes, movimentos e acesso, planeje a troca de `DATABASE_URL`. Sem a frase de criptografia, não é possível recuperar o arquivo. O teste automático é executado com dados fictícios no CI; a recuperação do seu banco real só estará validada após a primeira execução habilitada.
 
