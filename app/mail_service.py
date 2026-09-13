@@ -12,7 +12,7 @@ from .notifications import scope
 
 
 def scoped_products(user):
-    return scope(Produto.query, Produto, user)
+    return scope(Produto.query, Produto, user).filter(Produto.quantidade > 0, Produto.arquivado.is_(False))
 
 
 def alert_content(user, pref, today):
@@ -57,6 +57,11 @@ def queue_due_alerts(now=None):
 
 def send_message(message):
     config = current_app.config
+    if config['MAIL_TRANSPORT'] == 'gmail_api':
+        from .gmail_transport import send_gmail
+        return send_gmail(message)
+    if config['MAIL_TRANSPORT'] != 'smtp':
+        raise ValueError('Transporte de e-mail inválido.')
     if not config['MAIL_USE_SSL'] and not config['MAIL_USE_TLS']:
         raise ValueError('SMTP exige TLS ou SSL.')
     smtp_class = smtplib.SMTP_SSL if config['MAIL_USE_SSL'] else smtplib.SMTP
@@ -80,7 +85,9 @@ def deliver_pending(now=None):
     EmailDelivery.query.filter(EmailDelivery.status == 'pending', EmailDelivery.kind != 'alert',
         EmailDelivery.created_at < now - timedelta(minutes=30)).update({'status': 'expired', 'body': ''})
     db.session.commit()
-    if not current_app.config.get('MAIL_SERVER') or not current_app.config.get('MAIL_DEFAULT_SENDER'):
+    config = current_app.config
+    configured = all(config.get(key) for key in ('GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN')) if config['MAIL_TRANSPORT'] == 'gmail_api' else bool(config.get('MAIL_SERVER'))
+    if not configured or not config.get('MAIL_DEFAULT_SENDER'):
         return
     rows = EmailDelivery.query.filter(EmailDelivery.status == 'pending', EmailDelivery.next_attempt_at <= now).order_by(
         (EmailDelivery.kind == 'alert').asc(), EmailDelivery.created_at).limit(30).all()

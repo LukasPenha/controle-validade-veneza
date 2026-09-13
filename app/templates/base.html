@@ -98,6 +98,8 @@
                     </div>
 
                     <ul class="nav flex-column sidebar-nav">
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.index') }}"><i class="bi bi-box-seam"></i> Lotes e baixas</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.history') }}"><i class="bi bi-clock-history"></i> Histórico</a></li>
                         {% if current_user.role == 'gerente_geral' %}
                             <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_geral') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
                             <li class="nav-item"><a class="nav-link {% if 'gerenciar_lojas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_lojas') }}"><i class="bi bi-shop"></i> Gerenciar Lojas</a></li>

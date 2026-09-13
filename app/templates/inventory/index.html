@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Lotes e baixas · Veneza{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">ACOMPANHAMENTO DA OPERAÇÃO</span><h1>Lotes e baixas.</h1><p>Registre vendas, descartes e devoluções sem perder o histórico.</p></div></div>
+<section class="panel">
+<form class="row g-2 mb-4"><div class="col-sm-6"><label for="busca" class="form-label">Produto ou código</label><input id="busca" name="busca" value="{{ term }}" class="form-control"></div><div class="col-sm-4"><label for="situacao" class="form-label">Situação</label><select id="situacao" name="situacao" class="form-select">{% for val,label in [('abertos','Com saldo'),('encerrados','Encerrados'),('todos','Todos')] %}<option value="{{ val }}" {{ 'selected' if state==val }}>{{ label }}</option>{% endfor %}</select></div><div class="col-sm-2 d-flex align-items-end"><button class="btn btn-primary">Filtrar</button></div></form>
+<div class="table-responsive"><table class="table"><thead><tr><th>Produto</th><th>Loja / setor</th><th>Saldo</th><th>Validade</th><th>Custo unitário</th><th></th></tr></thead><tbody>{% for item in items.items %}<tr><td>{{ item.nome_produto }}<small class="d-block text-muted">{{ item.barcode or 'Sem código' }} · Lote {{ item.lote or item.id }}</small></td><td>{{ item.loja.nome }} / {{ item.setor.nome }}</td><td>{{ item.quantidade }}</td><td>{{ item.validade|data_simples }}</td><td>{{ item.custo_unitario|reais }}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('inventory.detail',item_id=item.id) }}">Detalhes e baixas</a></td></tr>{% else %}<tr><td colspan="6">Nenhum lote nesta seleção.</td></tr>{% endfor %}</tbody></table></div>
+{% if items.pages > 1 %}<div class="d-flex gap-3">{% if items.has_prev %}<a href="{{ url_for('inventory.index',page=items.prev_num,situacao=state,busca=term) }}">Anterior</a>{% endif %}<span>{{ items.page }} / {{ items.pages }}</span>{% if items.has_next %}<a href="{{ url_for('inventory.index',page=items.next_num,situacao=state,busca=term) }}">Próxima</a>{% endif %}</div>{% endif %}
+</section>
+{% endblock %}

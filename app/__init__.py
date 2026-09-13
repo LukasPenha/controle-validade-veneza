@@ -70,6 +70,11 @@ def create_app(config=None):
         MAIL_USERNAME=os.getenv('MAIL_USERNAME', ''),
         MAIL_PASSWORD=os.getenv('MAIL_PASSWORD', ''),
         MAIL_DEFAULT_SENDER=os.getenv('MAIL_DEFAULT_SENDER', ''),
+        MAIL_TRANSPORT=os.getenv('MAIL_TRANSPORT', 'smtp'),
+        GMAIL_CLIENT_ID=os.getenv('GMAIL_CLIENT_ID', ''),
+        GMAIL_CLIENT_SECRET=os.getenv('GMAIL_CLIENT_SECRET', ''),
+        GMAIL_REFRESH_TOKEN=os.getenv('GMAIL_REFRESH_TOKEN', ''),
+        LOGIN_IP_LIMIT_ENABLED=os.getenv('LOGIN_IP_LIMIT_ENABLED', 'false').lower() == 'true',
         PRODUCT_API_USER_AGENT=os.getenv('PRODUCT_API_USER_AGENT', 'VenezaValidade/2.0 (https://controle-validade-veneza-1.onrender.com)'),
     )
     if config:
@@ -86,6 +91,9 @@ def create_app(config=None):
     
 
     from .routes import routes
+    from . import audit
+    from .inventory import inventory_bp
+    app.register_blueprint(inventory_bp)
     from .auth import auth_bp
     
     app.register_blueprint(routes)
@@ -162,6 +170,12 @@ def create_app(config=None):
             return ""
         # Formata apenas Dia/Mês/Ano
         return value.strftime('%d/%m/%Y')
+
+    @app.template_filter('reais')
+    def reais(value):
+        if value is None:
+            return 'Não informado'
+        return 'R$ ' + f'{value:,.2f}'.replace(',', '_').replace('.', ',').replace('_', '.')
     # ------------------------------------------------
 
     return app

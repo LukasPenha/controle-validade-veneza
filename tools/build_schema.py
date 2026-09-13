@@ -1,41 +1,41 @@
-"""Gera SQL e migração para banco vazio; nunca acessa o banco de produção."""
+"""Gera os artefatos SQL sem reescrever migrações já publicadas."""
 from pathlib import Path
+import importlib.util
+import io
 import sys
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from sqlalchemy import create_mock_engine
 from alembic.migration import MigrationContext
-from alembic.autogenerate import produce_migrations, render_python_code
+from alembic.operations import Operations
 from app import create_app, db
-from app.models import UTCDateTime
 
-app = create_app({'TESTING': True, 'SECRET_KEY': 'schema-generator-local-' * 3,
-                  'SQLALCHEMY_DATABASE_URI': 'sqlite://', 'SCHEDULER_ENABLED': False})
-root = Path(__file__).resolve().parents[1]
+root=Path(__file__).resolve().parents[1]
+app=create_app({'TESTING':True,'SECRET_KEY':'schema-local-'*4,'SQLALCHEMY_DATABASE_URI':'sqlite://','SCHEDULER_ENABLED':False})
 with app.app_context():
-    statements = []
-    engine = create_mock_engine('postgresql://', lambda statement, *a, **k:
-        statements.append(str(statement.compile(dialect=engine.dialect)).strip() + ';'))
-    db.metadata.create_all(engine, checkfirst=False)
-    sql = '-- NOVO BANCO VENEZA V2. Execute somente em um banco vazio.\nBEGIN;\n\n'
-    sql += '\n\n'.join(statements)
-    sql += "\n\nCREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);\n"
-    sql += "INSERT INTO alembic_version VALUES ('20260909_v2');\nCOMMIT;\n"
-    (root / 'database').mkdir(exist_ok=True)
-    (root / 'database' / 'novo_banco.sql').write_text(sql, encoding='utf-8')
-    with db.engine.connect() as connection:
-        context = MigrationContext.configure(connection)
-        operations = produce_migrations(context, db.metadata)
-        def render_item(kind, item, autogen_context):
-            if kind == 'type' and isinstance(item, UTCDateTime):
-                return 'sa.DateTime(timezone=True)'
-            return False
-        upgrade = render_python_code(operations.upgrade_ops, render_item=render_item)
-        if "uq_usuario_username_lower" not in upgrade:
-            upgrade += "\n    op.create_index('uq_usuario_username_lower', 'usuario', [sa.text('lower(username)')], unique=True)"
-        downgrade = render_python_code(operations.downgrade_ops, render_item=render_item)
-        module = ('"""Instalação V2 em banco vazio."""\nfrom alembic import op\nimport sqlalchemy as sa\n\n'
-                  "revision = '20260909_v2'\ndown_revision = None\nbranch_labels = None\ndepends_on = None\n\n"
-                  'def upgrade():\n' + upgrade + '\n\ndef downgrade():\n' + downgrade + '\n')
-        (root / 'migrations' / 'versions' / '20260909_v2.py').write_text(module, encoding='utf-8')
+    statements=[]
+    engine=create_mock_engine('postgresql://',lambda statement,*a,**k:statements.append(str(statement.compile(dialect=engine.dialect)).strip()+';'))
+    db.metadata.create_all(engine,checkfirst=False)
+    seed=(root/'database/cadastrar_setores.sql').read_text(encoding='utf-8')
+    sql='-- INSTALAÇÃO NOVA. Não execute no banco existente.\nBEGIN;\n\n'+'\n\n'.join(statements)+'\n'+seed
+    sql+="\nCREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);\nINSERT INTO alembic_version VALUES ('20260912_operacao');\n"
+    output=io.StringIO()
+    context=MigrationContext.configure(dialect_name='postgresql',dialect_opts={'paramstyle':'named'},opts={'as_sql':True,'output_buffer':output})
+    with Operations.context(context):
+        spec=importlib.util.spec_from_file_location('upgrade_operations',root/'migrations/versions/20260912_operacao.py')
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.upgrade()
+    ddl=output.getvalue()
+    # Reuse only the role restriction for a fresh schema.
+    sql+=ddl[ddl.index('DO $$'):]+'\nCOMMIT;\n'
+    (root/'database/novo_banco.sql').write_text('\n'.join(line.rstrip() for line in sql.splitlines())+'\n',encoding='utf-8')
+    guard="""DO $$ BEGIN
+IF NOT EXISTS (SELECT 1 FROM public.alembic_version WHERE version_num IN ('20260909_v2','20260909_setores')) THEN
+RAISE EXCEPTION 'Versão diferente da esperada. Não reaplique a atualização.';
+END IF; END $$;
+"""
+    upgrade='-- ATUALIZAÇÃO DO BANCO EXISTENTE, SEM APAGAR LOTES OU USUÁRIOS.\nBEGIN;\nSET LOCAL search_path TO public;\n'+guard+seed+'\n'+ddl
+    upgrade+="UPDATE alembic_version SET version_num='20260912_operacao';\nCOMMIT;\n"
+    (root/'database/atualizar_20260912.sql').write_text('\n'.join(line.rstrip() for line in upgrade.splitlines())+'\n',encoding='utf-8')
     db.engine.dispose()
-print('SQL PostgreSQL e migração inicial gerados.')
+print('SQL de instalação e atualização gerados; migrações existentes preservadas.')

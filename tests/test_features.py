@@ -199,6 +199,30 @@ class FeatureTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/produtos?term=12').status_code,400)
         self.assertEqual(self.client.get('/lotes/novo').status_code,302)
 
+    def test_manager_selects_sector_and_notifies_only_assigned_area(self):
+        self.user.role='gerente'
+        db.session.commit()
+        self.login()
+        with patch('app.product_lookup.requests.get') as get:
+            get.return_value.status_code=200
+            get.return_value.json.return_value={'products':[{'code':'3017620422003','product_name':'Produto teste'}]}
+            token=self.client.get('/api/produtos?term=produto').get_json()['products'][0]['selection']
+        html=self.client.get('/lotes/novo',query_string={'selection':token}).get_data(as_text=True)
+        self.assertIn('name="setor_id"',html)
+        self.assertIn('Mercearia',html)
+        self.assertIn('Bebidas',html)
+        self.client.post('/lotes/novo',data={'selection':token,'quantidade':'2',
+            'validade':str(self.today),'setor_id':'2','loja_id':'2'})
+        item=Produto.query.order_by(Produto.id.desc()).first()
+        self.assertEqual((item.loja_id,item.setor_id),(1,2))
+        self.user.role='encarregado_setor'
+        self.user.setor_id=1
+        db.session.commit()
+        self.assertEqual(unread_query(self.user).filter_by(produto_id=item.id).count(),0)
+        self.user.setor_id=2
+        db.session.commit()
+        self.assertEqual(unread_query(self.user).filter_by(produto_id=item.id).count(),2)
+
     def test_user_validation_respects_new_schema(self):
         self.user.role='gerente_geral'
         db.session.commit()
@@ -217,7 +241,7 @@ class FeatureTests(unittest.TestCase):
         from sqlalchemy.exc import IntegrityError
         sync_expiry_notifications()
         item=Produto.query.first()
-        item.quantidade=0
+        item.quantidade=-1
         with self.assertRaises(IntegrityError):
             db.session.commit()
         db.session.rollback()
@@ -277,6 +301,8 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(result.exit_code,0,result.output)
             self.assertEqual(Usuario.query.count(),0)
             self.assertEqual(EmailPreference.query.count(),0)
+            self.assertEqual({s.nome for s in Setor.query.all()},
+                {'Padaria','Açougue','Mercearia','Frios','Bebidas','Higiene e limpeza'})
             self.assertNotEqual(app.test_cli_runner().invoke(args=['init-db']).exit_code,0)
             db.session.remove()
             db.engine.dispose()

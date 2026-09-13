@@ -1,0 +1,42 @@
+name: Backup criptografado e restauração
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: veneza-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: vars.BACKUPS_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: local-ephemeral-test
+          POSTGRES_DB: veneza_restore
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Backup e teste em banco descartável
+        run: python tools/backup.py --output backups/veneza.dump.gpg
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          RESTORE_TEST_URL: postgresql://postgres:local-ephemeral-test@127.0.0.1:5432/veneza_restore?sslmode=disable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: veneza-backup-${{ github.run_id }}
+          path: backups/veneza.dump.gpg
+          retention-days: 7
+          if-no-files-found: error

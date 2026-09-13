@@ -15,11 +15,15 @@ def login():
         return redirect(url_for('routes.index'))
 
     if request.method == 'POST':
-        username = request.form.get('username')
+        username = request.form.get('username', '').strip().lower()
         password = request.form.get('password', '')
-        user = Usuario.query.filter_by(username=username).first()
+        from .login_protection import allow_attempt
+        if not allow_attempt(username):
+            flash('Muitas tentativas. Aguarde 15 minutos antes de tentar novamente.', 'warning')
+            return render_template('login.html'), 429, {'Retry-After': '900'}
+        user = Usuario.query.filter(func.lower(Usuario.username) == username).first()
 
-        if user and password and user.check_password(password):
+        if user and password and len(password.encode()) <= 72 and user.check_password(password):
             session.clear()
             login_user(user)
             flash('Login realizado com sucesso!', 'success')

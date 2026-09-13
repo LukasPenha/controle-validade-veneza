@@ -7,6 +7,7 @@
 </div>
 <section class="panel lookup-panel">
     <h2>Qual produto você quer acompanhar?</h2>
+    <p><a href="{{ url_for('lots.create',manual=1) }}">Produto não encontrado ou de fabricação própria? Registrar excepcionalmente</a></p>
     <p class="text-muted">Leia o código de barras ou pesquise pelo nome e pela marca.</p>
     <form id="productSearchForm" class="d-flex gap-2 mb-3">
         <label for="productSearchInput" class="visually-hidden">Nome ou código de barras</label>

@@ -17,7 +17,7 @@ def dashboard_data():
     mode = request.args.get('mode', 'all')
     if not 2000 <= year <= 2100 or not 0 <= month <= 12 or horizon not in (7, 15, 30, 60, 90) or mode not in ('all', 'expired', 'soon'):
         abort(400)
-    query = Produto.query
+    query = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False))
     if store:
         query = query.filter(Produto.loja_id == store)
     if sector:
@@ -39,7 +39,7 @@ def dashboard_data():
     def ranking(q):
         return q.with_entities(Produto.barcode.label('code'), func.min(Produto.nome_produto).label('name'),
             func.sum(Produto.quantidade).label('units'), func.count(Produto.id).label('records')).group_by(
-                Produto.barcode).order_by(func.sum(Produto.quantidade).desc(), Produto.barcode).limit(5).all()
+                Produto.barcode, Produto.nome_produto).order_by(func.sum(Produto.quantidade).desc(), Produto.barcode).limit(5).all()
     detail_query = yearly
     if month:
         detail_query = detail_query.filter(extract('month', Produto.validade) == month)
@@ -49,7 +49,8 @@ def dashboard_data():
         detail_query = detail_query.filter(Produto.validade >= today, Produto.validade <= today + timedelta(days=horizon))
     products = detail_query.order_by(Produto.validade, Produto.id).paginate(
         page=request.args.get('page', 1, type=int), per_page=15, error_out=False)
-    return dict(today=today, year=year, month=month, horizon=horizon, store=store, sector=sector,
+    from .inventory import financial_data
+    return dict(finances=financial_data(year,store,sector), today=today, year=year, month=month, horizon=horizon, store=store, sector=sector,
         mode=mode, bars=bars, yearly=totals(yearly), expired=totals(expired), soon=totals(soon),
         urgent=totals(query.filter(Produto.validade >= today, Produto.validade <= today + timedelta(days=7))),
         expired_ranking=ranking(expired), soon_ranking=ranking(soon), products=products,

@@ -4,7 +4,7 @@ Aplicação Flask para lotes por loja e setor, dashboard executivo, central de a
 
 A V2 usa consulta gratuita à Open Food Facts por nome ou código de barras, com câmera. O catálogo interno foi removido. Quantidade, validade e lote são informados após selecionar o produto.
 
-Esta versão requer **um banco novo**. Veja o [guia de configuração](docs/CONFIGURACAO.md), o [SQL de instalação](database/novo_banco.sql) e a [comparação das APIs](docs/APIS_PRODUTOS.md).
+**Já usa a V2? Não apague o banco.** Execute [a atualização de 12/09](database/atualizar_20260912.sql) ou `flask --app run db upgrade` antes de publicar. Ela preserva usuários e lotes. Para instalações vazias, use o [SQL completo](database/novo_banco.sql). Veja o [guia de operação, Gmail e backups](docs/OPERACAO.md).
 
 ## Executar
 
@@ -25,6 +25,6 @@ Usam banco em memória, sem acessar o `.env`. `tests/preview_app.py` usa dados f
 
 ## Produção
 
-Use HTTPS, `COOKIE_SECURE=true` e PostgreSQL. Render Free bloqueia Gmail SMTP e pode dormir; os e-mails exigem outra infraestrutura ou futura integração por HTTPS. Leia o guia antes de habilitar agendamentos.
+Use HTTPS, `COOKIE_SECURE=true` e PostgreSQL. A versão inclui Gmail por HTTPS/OAuth, baixas parciais, custos, auditoria e proteção de login. Os workflows de e-mail e backup vêm desativados até configurar as credenciais e variáveis conforme o [guia](docs/OPERACAO.md). SMTP continua disponível em hospedagens compatíveis.
 
 Dados: [Open Food Facts](https://world.openfoodfacts.org), sob [ODbL e termos de uso](https://world.openfoodfacts.org/terms-of-use). Cobertura não garantida; confira a embalagem.

@@ -1,5 +1,7 @@
 # Instalação V2 — banco totalmente novo
 
+**Atualização de 12/09:** quem já instalou a V2 deve preservar o banco e usar `database/atualizar_20260912.sql`. Veja `docs/OPERACAO.md` para as novas funções, Gmail por HTTPS e backups. As instruções de banco vazio abaixo são apenas para a primeira instalação.
+
 Esta versão substitui o catálogo interno por consulta externa e usa um esquema novo. Não execute os antigos scripts com DROP TABLE. O banco anterior não precisa ser acessado.
 
 ## 1. Preparar o banco
@@ -12,6 +14,8 @@ Crie um PostgreSQL vazio no provedor escolhido. Escolha uma forma de instalar as
 Não execute ambos: eles instalam o mesmo esquema. Para futuras versões, use `python -m flask --app run db upgrade`, seguindo as instruções da versão.
 
 ## 2. Criar o primeiro acesso
+
+Os setores iniciais são incluídos na instalação. Se instalou o SQL anterior e a lista de setores ficou vazia, execute `database/cadastrar_setores.sql` no banco atual ou `python -m flask --app run db upgrade`. Isso preserva os registros existentes. No cadastro do encarregado, selecione a mesma loja e setor dos lotes que ele deve acompanhar; os IDs não devem ser presumidos.
 
 Com as dependências instaladas e o `.env` apontando para o **novo banco**:
 
@@ -66,7 +70,7 @@ No máximo um resumo por pessoa por dia. Sem produtos na faixa, fica **Sem produ
 
 Configure Gmail conforme `.env.example`: `smtp.gmail.com`, porta 587 com TLS, usuário remetente e [senha de app do Google](https://support.google.com/accounts/answer/185833?hl=pt-BR), quando disponível. Não publique credenciais.
 
-**Render Free:** [a documentação](https://render.com/docs/free) informa suspensão por ociosidade e bloqueio de SMTP nas portas 25, 465 e 587. Salvar as configurações não torna o Gmail funcional nesse plano. Esta integração usa SMTP e exige hospedagem que permita a conexão. Envio por HTTPS é outra alternativa, ainda não implementada.
+**Render Free:** [a documentação](https://render.com/docs/free) informa suspensão por ociosidade e bloqueio de SMTP nas portas 25, 465 e 587. Use a integração Gmail por HTTPS e OAuth incluída em 12/09. O passo a passo e a execução externa da fila estão em `docs/OPERACAO.md`.
 
 Em infraestrutura sempre ativa, escolha somente uma opção:
 

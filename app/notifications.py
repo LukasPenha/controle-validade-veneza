@@ -27,6 +27,8 @@ def unread_query(user):
 
 
 def expiry_event(product, today):
+    if product.quantidade == 0 or product.arquivado:
+        return None
     days = (product.validade - today).days
     if days > 7:
         return None
@@ -63,7 +65,7 @@ def sync_expiry_notifications(now=None, user=None):
             item.resolved_at = now
         elif event:
             item.mensagem = event[2]
-    query = Produto.query.filter(Produto.validade <= today + timedelta(days=7))
+    query = Produto.query.filter(Produto.validade <= today + timedelta(days=7), Produto.quantidade > 0, Produto.arquivado.is_(False))
     if user:
         query = scope(query, Produto, user)
     for product in query.yield_per(200):

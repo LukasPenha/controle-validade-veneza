@@ -257,7 +257,7 @@ def excluir_usuario(usuario_id):
 def produtos_para_rebaixa():
     if current_user.role != 'gerente': return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
-    produtos = Produto.query.filter(Produto.loja_id == current_user.loja_id, Produto.status == 'Para Rebaixa', Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
+    produtos = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.loja_id == current_user.loja_id, Produto.status == 'Para Rebaixa', Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('gerente/produtos_para_rebaixa.html', produtos_para_rebaixa=produtos, now=agora_brasil())
 
 @routes.route('/gerente/em-rebaixa')
@@ -265,7 +265,7 @@ def produtos_para_rebaixa():
 def produtos_em_rebaixa():
     if current_user.role != 'gerente': return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
-    produtos = Produto.query.filter(Produto.loja_id == current_user.loja_id, Produto.status == 'Em Rebaixa', Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
+    produtos = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.loja_id == current_user.loja_id, Produto.status == 'Em Rebaixa', Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('gerente/produtos_em_rebaixa.html', produtos_em_rebaixa=produtos, now=agora_brasil())
 
 @routes.route('/gerente/relatorio')
@@ -279,7 +279,7 @@ def relatorio_gerente():
 def listar_produtos_encarregado():
     if current_user.role != 'encarregado_setor': return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
-    produtos = Produto.query.filter(Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
+    produtos = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.validade >= agora_brasil().date()).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('encarregado/listar_produtos.html', produtos=produtos, now=agora_brasil())
 
 @routes.route('/encarregado/relatorio')
@@ -294,7 +294,7 @@ def vencidos_encarregado():
     if current_user.role != 'encarregado_setor': return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
     data_limite = agora_brasil().date() - timedelta(days=30)
-    produtos_vencidos = Produto.query.filter(Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.validade < agora_brasil().date(), Produto.validade >= data_limite).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
+    produtos_vencidos = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.validade < agora_brasil().date(), Produto.validade >= data_limite).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('encarregado/produtos_vencidos.html', produtos=produtos_vencidos, today=agora_brasil().date())
 
 @routes.route('/auxiliar/dashboard')
@@ -317,7 +317,7 @@ def pagina_produtos_vencidos():
     if current_user.role not in ['gerente', 'gerente_geral', 'gerente_trocas']: return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
     data_limite = agora_brasil().date() - timedelta(days=30)
-    query = Produto.query.filter(Produto.validade < agora_brasil().date(), Produto.validade >= data_limite)
+    query = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.validade < agora_brasil().date(), Produto.validade >= data_limite)
     if current_user.role == 'gerente':
         query = query.filter(Produto.loja_id == current_user.loja_id)
         produtos_vencidos = query.order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
@@ -331,13 +331,15 @@ def bulk_action():
     action = request.form.get('action'); selected_ids = request.form.getlist('selected_ids')
     if not selected_ids:
         flash('Nenhum item selecionado.', 'warning'); return redirect(url_for('routes.index'))
-    produtos = Produto.query.filter(Produto.id.in_(selected_ids)).all()
+    produtos = Produto.query.filter(Produto.arquivado.is_(False), Produto.id.in_(selected_ids)).with_for_update().all()
     if action == 'delete':
         count = 0
         for produto in produtos:
             if (current_user.role == 'gerente_geral' or (current_user.role == 'gerente' and produto.loja_id == current_user.loja_id) or (current_user.role == 'encarregado_setor' and produto.loja_id == current_user.loja_id and produto.setor_id == current_user.setor_id)):
-                db.session.delete(produto); count += 1
-        flash(f'{count} produtos foram excluídos.', 'success')
+                if produto.quantidade == 0:
+                    produto.arquivado = True
+                    count += 1
+        flash(f'{count} lotes sem saldo foram arquivados. Lotes com saldo precisam de baixa antes.', 'info')
     db.session.commit()
     return redirect(url_for('routes.index'))
 
@@ -345,7 +347,7 @@ def bulk_action():
 @login_required
 def editar_produto(produto_id):
     if current_user.role != 'encarregado_setor': return redirect(url_for('routes.index'))
-    produto = Produto.query.get_or_404(produto_id)
+    produto = Produto.query.filter_by(id=produto_id).with_for_update().first_or_404()
     if produto.loja_id != current_user.loja_id or produto.setor_id != current_user.setor_id:
         flash('Você só pode editar produtos do seu setor.', 'danger')
         return redirect(url_for('routes.listar_produtos_encarregado'))
@@ -353,11 +355,15 @@ def editar_produto(produto_id):
         quantity = int(request.form.get('quantidade', ''))
         validity = date.fromisoformat(request.form.get('validade', ''))
         reason = request.form.get('motivo_rebaixa', '').strip()
-        if not 1 <= quantity <= 2147483647 or len(reason) > 255:
+        if not 1 <= quantity <= 2147483647 or len(reason) > 255 or produto.arquivado:
             raise ValueError()
     except (ValueError, TypeError):
         flash('Confira a quantidade positiva, validade e motivo.', 'danger')
         return redirect(url_for('routes.listar_produtos_encarregado'))
+    from .models import Movimento
+    if quantity != produto.quantidade and Movimento.query.filter_by(produto_id=produto.id).first():
+        flash('Este lote já possui baixas. Registre as próximas saídas em Lotes e baixas.', 'warning')
+        return redirect(url_for('inventory.detail',item_id=produto.id))
     produto.quantidade, produto.validade, produto.motivo_rebaixa = quantity, validity, reason
     db.session.commit()
     flash('Produto atualizado com sucesso!', 'success')
@@ -389,9 +395,12 @@ def excluir_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
     if current_user.role == 'encarregado_setor' and (produto.loja_id != current_user.loja_id or produto.setor_id != current_user.setor_id): return redirect(url_for('routes.index'))
     if current_user.role == 'gerente' and produto.loja_id != current_user.loja_id: return redirect(url_for('routes.index'))
-    db.session.delete(produto)
+    if produto.quantidade > 0:
+        flash('Registre a baixa do saldo antes de arquivar o lote.', 'warning')
+        return redirect(url_for('inventory.detail',item_id=produto.id))
+    produto.arquivado = True
     db.session.commit()
-    flash('Produto excluído com sucesso!', 'success')
+    flash('Lote arquivado. O histórico foi preservado.', 'success')
     return redirect(url_for('routes.index'))
 
 # --- ROTAS PARA DATAS CURTAS ---

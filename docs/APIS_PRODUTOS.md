@@ -16,7 +16,7 @@ O cache técnico reduz chamadas. Cada lote guarda a identificação e o link da 
 
 ## Limites
 
-Padaria própria, hortifrúti, itens sem código e mercadorias não alimentícias podem não aparecer. Sem resultado, o sistema informa a ausência e não cria uma identidade manual. Confira nome/marca antes de registrar. A API não determina a validade de cada embalagem.
+Padaria própria, hortifrúti, itens sem código e mercadorias não alimentícias podem não aparecer. Há um lançamento excepcional com nome informado pela equipe, sem recriar catálogo nem publicar o produto na API. Confira nome/marca antes de registrar. A API não determina a validade de cada embalagem.
 
 Limites por IP podem ser compartilhados com outras aplicações da hospedagem. Cache não garante disponibilidade.
 

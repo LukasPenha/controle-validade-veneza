@@ -11,3 +11,8 @@ __pycache__/
 
 # Arquivo de variáveis de ambiente
 .env
+backups/
+*.dump
+*.gpg
+client_secret*.json
+token.json

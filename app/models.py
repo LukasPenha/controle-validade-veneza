@@ -98,9 +98,10 @@ class Usuario(db.Model, UserMixin):
 
 class Produto(db.Model):
     __table_args__ = (
-        db.CheckConstraint('quantidade > 0', name='ck_produto_quantidade'),
+        db.CheckConstraint('quantidade >= 0', name='ck_produto_quantidade'),
+        db.CheckConstraint('custo_unitario IS NULL OR custo_unitario >= 0', name='ck_produto_custo'),
         db.CheckConstraint("status IN ('Para Rebaixa','Em Rebaixa')", name='ck_produto_status'),
-        db.CheckConstraint("source = 'openfoodfacts'", name='ck_produto_source'),
+        db.CheckConstraint("source IN ('openfoodfacts','manual')", name='ck_produto_source'),
         db.Index('ix_produto_loja_setor_validade', 'loja_id', 'setor_id', 'validade'),
         db.Index('ix_produto_status_validade', 'status', 'validade'),
     )
@@ -114,6 +115,8 @@ class Produto(db.Model):
     marca = db.Column(db.String(150), nullable=False, default='')
     lote = db.Column(db.String(80), nullable=False, default='')
     quantidade = db.Column(db.Integer, nullable=False)
+    custo_unitario = db.Column(db.Numeric(12, 2))
+    arquivado = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
     validade = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.String(50), nullable=False, default='Para Rebaixa')
     data_cadastro = db.Column(UTCDateTime(), nullable=False, default=utcnow)
@@ -166,3 +169,41 @@ class ApiBudget(db.Model):
     __tablename__ = 'api_budget'
     name = db.Column(db.String(30), primary_key=True)
     next_allowed_at = db.Column(UTCDateTime(), nullable=False)
+
+
+class Movimento(db.Model):
+    __table_args__ = (
+        db.CheckConstraint('quantidade > 0', name='ck_movimento_quantidade'),
+        db.CheckConstraint("tipo IN ('venda','descarte','devolucao')", name='ck_movimento_tipo'),
+        db.CheckConstraint('custo_unitario IS NULL OR custo_unitario >= 0', name='ck_movimento_custo'),
+        db.CheckConstraint('valor_unitario IS NULL OR valor_unitario >= 0', name='ck_movimento_valor'),
+    )
+    id = db.Column(db.Integer, primary_key=True)
+    produto_id = db.Column(db.Integer, db.ForeignKey('produto.id', ondelete='RESTRICT'), nullable=False, index=True)
+    request_key = db.Column(db.String(64), nullable=False, unique=True)
+    tipo = db.Column(db.String(15), nullable=False)
+    quantidade = db.Column(db.Integer, nullable=False)
+    custo_unitario = db.Column(db.Numeric(12, 2))
+    valor_unitario = db.Column(db.Numeric(12, 2))
+    motivo = db.Column(db.String(255), nullable=False)
+    actor = db.Column(db.String(254), nullable=False)
+    timestamp = db.Column(UTCDateTime(), nullable=False, default=utcnow, index=True)
+
+
+class AuditEvent(db.Model):
+    __tablename__ = 'audit_event'
+    id = db.Column(db.Integer, primary_key=True)
+    produto_id = db.Column(db.Integer, nullable=False, index=True)
+    loja_id = db.Column(db.Integer, nullable=False, index=True)
+    setor_id = db.Column(db.Integer, nullable=False)
+    actor = db.Column(db.String(254), nullable=False)
+    action = db.Column(db.String(30), nullable=False)
+    changes = db.Column(db.JSON, nullable=False)
+    timestamp = db.Column(UTCDateTime(), nullable=False, default=utcnow, index=True)
+
+
+class LoginLimit(db.Model):
+    __tablename__ = 'login_limit'
+    key = db.Column(db.String(64), primary_key=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)
+    expires_at = db.Column(UTCDateTime(), nullable=False, index=True)
