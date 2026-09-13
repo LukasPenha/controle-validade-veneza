@@ -36,11 +36,24 @@ def check_target(source, target):
     return source_env,target_env
 
 
-def run(args, env=None, input=None):
+def run(args, env=None, input=None, label=None):
     result=subprocess.run(args,env=env,input=input,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     if result.returncode:
         # stderr may include URLs, account names or row contents; never echo it into CI logs.
-        raise RuntimeError('Falha em '+Path(args[0]).name+'. Confira conexão, senha, ferramentas e versões.')
+        detail = result.stderr.lower()
+        reason = 'Confira conexão, senha, ferramentas e versões.'
+        for marker, message in (
+            (b'permission denied', 'Permissão de arquivo ou banco recusada.'),
+            (b'password authentication failed', 'Autenticação do banco recusada.'),
+            (b'connection refused', 'Servidor de banco indisponível.'),
+            (b'server version mismatch', 'Cliente PostgreSQL incompatível com o servidor.'),
+            (b'schema "public" already exists', 'O schema public já existe no destino.'),
+            (b'no such file or directory', 'Arquivo ou diretório necessário ausente.'),
+        ):
+            if marker in detail:
+                reason = message
+                break
+        raise RuntimeError(f'Falha em {label or Path(args[0]).name} (código {result.returncode}). {reason}')
     return result.stdout
 
 
@@ -52,7 +65,7 @@ def pg(folder,env,*args):
     for key in PG_ENV:
         command.extend(['-e',key])
     command.extend(['-v',str(folder)+':/work','postgres:18',*args])
-    return run(command,env=env)
+    return run(command,env=env,label=args[0])
 
 
 def backup(output):
@@ -83,6 +96,11 @@ def backup(output):
         count=pg(folder,target,'psql','-X','-tAc',"SELECT count(*) FROM pg_tables WHERE schemaname='public'").strip()
         if count != b'0':
             raise ValueError('O banco local de verificação precisa estar vazio; nada foi removido.')
+        # A schema-filtered dump includes CREATE SCHEMA public. Fresh PostgreSQL
+        # databases already contain it. RESTRICT refuses any remaining objects;
+        # this runs only on the validated disposable local target, never source.
+        pg(folder,target,'psql','-X','-v','ON_ERROR_STOP=1','-tAc',
+           'DROP SCHEMA IF EXISTS public RESTRICT')
         pg(folder,target,'pg_restore','--exit-on-error','--no-owner','--no-acl','--dbname',target['PGDATABASE'],'/work/restore.dump')
         pg(folder,target,'psql','-X','-v','ON_ERROR_STOP=1','-tAc',
            'SELECT count(*) FROM public.usuario; SELECT count(*) FROM public.produto; SELECT count(*) FROM public.movimento; SELECT count(*) FROM public.audit_event;')

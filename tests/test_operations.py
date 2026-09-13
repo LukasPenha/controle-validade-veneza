@@ -9,7 +9,7 @@ from app import db, create_app
 from app.models import Produto, Movimento, AuditEvent, LoginLimit, utcnow
 from app.inventory import financial_data
 from app.notifications import sync_expiry_notifications, unread_query
-from tools.backup import check_target
+from tools.backup import check_target, run
 
 
 class OperationTests(unittest.TestCase):
@@ -116,6 +116,15 @@ class GmailTests(unittest.TestCase):
 
 
 class BackupTests(unittest.TestCase):
+    def test_failure_diagnostics_do_not_expose_private_stderr(self):
+        result=Mock(returncode=1,stdout=b'',stderr=b'password authentication failed: private-user private-password')
+        with patch('tools.backup.subprocess.run',return_value=result):
+            with self.assertRaises(RuntimeError) as error:
+                run(['docker'],label='pg_dump')
+        self.assertIn('pg_dump',str(error.exception))
+        self.assertIn('Autenticação',str(error.exception))
+        self.assertNotIn('private',str(error.exception))
+
     def test_restore_target_is_local_and_distinct(self):
         source='postgresql://test:test@db.example/source'
         for target in [source,'postgresql://test:test@db.example/veneza_restore','postgresql://test:test@localhost/production']:
