@@ -46,6 +46,9 @@ def run(args, env=None, input=None):
 
 def pg(folder,env,*args):
     command=['docker','run','--rm','--network','host']
+    # pg_dump creates private files. Match the host user so GnuPG can read them.
+    if hasattr(os,'getuid'):
+        command.extend(['--user',f'{os.getuid()}:{os.getgid()}'])
     for key in PG_ENV:
         command.extend(['-e',key])
     command.extend(['-v',str(folder)+':/work','postgres:18',*args])
@@ -62,8 +65,10 @@ def backup(output):
         raise ValueError('O arquivo de saída já existe; escolha outro nome.')
     with tempfile.TemporaryDirectory(prefix='veneza-backup-') as temporary:
         folder=Path(temporary).resolve()
+        print('Etapa: gerar cópia PostgreSQL.',flush=True)
         # Read-only dump of the application schema. Auth/Storage belong to Supabase and are outside this backup.
         pg(folder,source,'pg_dump','--format=custom','--schema=public','--no-owner','--no-acl','--file=/work/data.dump')
+        print('Etapa: criptografar e verificar arquivo.',flush=True)
         run(['gpg','--batch','--yes','--pinentry-mode','loopback','--passphrase-fd','0',
              '--symmetric','--cipher-algo','AES256','--output',str(folder/'backup.gpg'),str(folder/'data.dump')],
             input=passphrase.encode())
@@ -74,6 +79,7 @@ def backup(output):
                 return hashlib.file_digest(stream,'sha256').digest()
         if digest(folder/'data.dump') != digest(folder/'restore.dump'):
             raise RuntimeError('A cópia descriptografada não corresponde ao backup.')
+        print('Etapa: restaurar no banco local descartável.',flush=True)
         count=pg(folder,target,'psql','-X','-tAc',"SELECT count(*) FROM pg_tables WHERE schemaname='public'").strip()
         if count != b'0':
             raise ValueError('O banco local de verificação precisa estar vazio; nada foi removido.')
