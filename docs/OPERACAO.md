@@ -13,6 +13,8 @@ As atualizações preservam usuários e produtos. Campos financeiros e de lote a
 
 ## Produtos, validade e exposição
 
+O menu **Validades próximas** lista os produtos ativos em ordem crescente de dias restantes. O padrão é até 30 dias, com filtro de 0 a 365 dias e atalhos de 10, 15 e 30. Vermelho indica 0–10 dias; amarelo, 11–15; verde, 16–30; acima de 30, cinza. Vencidos têm uma aba própria. Busca por descrição, código ou PLU e permissões por loja/setor se aplicam à listagem. Esta tela não depende dos relatórios nem exige nova migração além da atualização de fotos descrita acima.
+
 - Pesquise pela descrição ou código de barras, inclusive pela câmera. Se não encontrar, use o registro manual.
 - Cadastre a descrição do produto, validade, código de barras quando houver e PLU opcional. Informe quantidade, loja e setor; para encarregados, loja e setor vêm do usuário. Não é necessário número de lote. Validades diferentes devem ser registradas separadamente.
 - O gerente coloca o produto em **Em Rebaixa**. Em **Produtos e exposição → Detalhes e fotos**, o encarregado da mesma loja e setor envia a foto e descreve onde expôs o produto.

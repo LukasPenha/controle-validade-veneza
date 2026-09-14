@@ -98,6 +98,7 @@
                     </div>
 
                     <ul class="nav flex-column sidebar-nav">
+                        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'inventory.upcoming' }}" href="{{ url_for('inventory.upcoming') }}"><i class="bi bi-calendar-range"></i> Validades próximas</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.index') }}"><i class="bi bi-box-seam"></i> Produtos e exposição</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.history') }}"><i class="bi bi-clock-history"></i> Histórico</a></li>
                         {% if current_user.role == 'gerente_geral' %}

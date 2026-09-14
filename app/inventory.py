@@ -2,6 +2,7 @@
 import hashlib
 import io
 import warnings
+from datetime import timedelta
 from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from PIL import Image, ImageOps, UnidentifiedImageError
@@ -21,6 +22,30 @@ def current_proof_exists():
 
 def visible_lots():
     return scope(Produto.query, Produto, current_user)
+
+
+@inventory_bp.get('/validades-proximas')
+@login_required
+def upcoming():
+    today = agora_brasil().date()
+    days = request.args.get('dias', 30, type=int)
+    mode = request.args.get('situacao', 'proximos')
+    if not 0 <= days <= 365 or mode not in ('proximos', 'vencidos'):
+        abort(400)
+    term = request.args.get('busca', '').strip()[:100]
+    query = visible_lots().filter(Produto.quantidade > 0, Produto.arquivado.is_(False))
+    if term:
+        query = query.filter(db.or_(Produto.nome_produto.ilike('%'+term+'%'),
+                                   Produto.barcode == term, Produto.plu == term))
+    expired_count = query.filter(Produto.validade < today).count()
+    if mode == 'vencidos':
+        query = query.filter(Produto.validade < today)
+    else:
+        query = query.filter(Produto.validade >= today, Produto.validade <= today + timedelta(days=days))
+    products = query.order_by(Produto.validade, Produto.nome_produto, Produto.id).paginate(
+        page=request.args.get('page', 1, type=int), per_page=30, error_out=False)
+    return render_template('inventory/upcoming.html', products=products, today=today,
+                           days=days, mode=mode, term=term, expired_count=expired_count)
 
 
 def normalize_photo(upload):

@@ -28,6 +28,15 @@ const fs = require('fs');
   await page.locator('#sidebarMenu.show').waitFor();
   await page.keyboard.press('Escape');
   await page.locator('#sidebarMenu.show').waitFor({state:'hidden'});
+  await page.goto('http://127.0.0.1:8012/validades-proximas');
+  for (const width of [1440,768,390,320]) {
+    await page.setViewportSize({width,height:1000});
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow upcoming ${width}`);
+    if (width === 390) await page.screenshot({path:path.join(output,'upcoming-mobile.png'),fullPage:true});
+  }
+  await page.locator('#expiry-days').fill('10');
+  await page.getByRole('button',{name:'Filtrar',exact:true}).click();
+  await page.waitForURL('**/validades-proximas?**dias=10');
   await page.goto('http://127.0.0.1:8012/perfil');
   await page.screenshot({path:path.join(output,'profile-mobile.png'),fullPage:true});
   await page.getByLabel('Frequência',{exact:true}).selectOption('weekly');

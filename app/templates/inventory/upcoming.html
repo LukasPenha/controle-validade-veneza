@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Validades próximas · Veneza{% endblock %}
+{% block content %}
+<style>
+.expiry-legend {display:flex;flex-wrap:wrap;gap:.6rem;margin:1rem 0}
+.expiry-badge {display:inline-block;border-radius:8px;padding:.4rem .65rem;font-weight:700;white-space:nowrap}
+.expiry-red {background:#fee2e2;color:#991b1b;border-left:4px solid #dc2626}
+.expiry-yellow {background:#fef3c7;color:#78350f;border-left:4px solid #d97706}
+.expiry-green {background:#dcfce7;color:#166534;border-left:4px solid #16a34a}
+.expiry-neutral {background:#e2e8f0;color:#334155;border-left:4px solid #64748b}
+.expiry-expired {background:#7f1d1d;color:#fff;border-left:4px solid #450a0a}
+.expiry-table td {vertical-align:middle}
+@media(max-width:575px){.expiry-table thead{display:none}.expiry-table,.expiry-table tbody,.expiry-table tr,.expiry-table td{display:block;width:100%}.expiry-table tr{padding:1rem 0;border-bottom:1px solid var(--bs-border-color)}.expiry-table td{border:0;padding:.3rem 0;overflow-wrap:anywhere}.expiry-table td[data-label]::before{content:attr(data-label) ': ';font-weight:600}.expiry-table .expiry-product{font-size:1.1rem}}
+</style>
+<div class="page-heading"><div><span class="eyebrow">ACOMPANHAMENTO DIÁRIO</span><h1>Validades próximas.</h1><p>Os produtos que vencem primeiro aparecem no topo. Dados da sua área de acesso.</p></div></div>
+<section class="panel">
+<div class="filter-tabs"><a class="{{ 'active' if mode == 'proximos' }}" href="{{ url_for('inventory.upcoming',dias=days,busca=term) }}">Dentro da validade</a><a class="{{ 'active' if mode == 'vencidos' }}" href="{{ url_for('inventory.upcoming',situacao='vencidos',dias=days,busca=term) }}">Vencidos · {{ expired_count }}</a></div>
+<form class="row g-3 align-items-end mb-3" method="GET"><input type="hidden" name="situacao" value="{{ mode }}"><div class="col-md-6"><label for="expiry-search" class="form-label">Descrição, código de barras ou PLU</label><input id="expiry-search" name="busca" value="{{ term }}" class="form-control" maxlength="100"></div><div class="col-sm-6 col-md-4"><label for="expiry-days" class="form-label">Vencendo em até quantos dias?</label><input id="expiry-days" name="dias" type="number" min="0" max="365" value="{{ days }}" class="form-control" required {{ 'disabled' if mode == 'vencidos' }}></div><div class="col-sm-6 col-md-2"><button class="btn btn-primary w-100">Filtrar</button></div></form>
+{% if mode == 'proximos' %}<div class="d-flex gap-2 flex-wrap">{% for limit in [10,15,30] %}<a class="btn btn-sm {{ 'btn-primary' if days == limit else 'btn-outline-primary' }}" href="{{ url_for('inventory.upcoming',dias=limit,busca=term) }}">Até {{ limit }} dias</a>{% endfor %}</div><div class="expiry-legend" aria-label="Legenda de prazos"><span class="expiry-badge expiry-red">0 a 10 dias</span><span class="expiry-badge expiry-yellow">11 a 15 dias</span><span class="expiry-badge expiry-green">16 a 30 dias</span>{% if days > 30 %}<span class="expiry-badge expiry-neutral">Acima de 30 dias</span>{% endif %}</div>{% else %}<p class="text-danger">Produtos já vencidos, começando pelos mais antigos. Retire-os da exposição para venda.</p>{% endif %}
+<p class="text-muted small">{{ products.total }} produtos {{ 'vencidos' if mode == 'vencidos' else 'com validade de hoje até ' ~ days ~ ' dias' }} · apenas registros em acompanhamento.</p>
+<table class="table expiry-table"><thead><tr><th>Produto</th><th>Dias restantes</th><th>Validade</th><th>Loja / setor</th><th>Quantidade</th><th>Status</th><th></th></tr></thead><tbody>
+{% for product in products.items %}{% set remaining=(product.validade-today).days %}{% set tone='expired' if remaining < 0 else 'red' if remaining <= 10 else 'yellow' if remaining <= 15 else 'green' if remaining <= 30 else 'neutral' %}
+<tr><td class="expiry-product"><strong>{{ product.nome_produto }}</strong><small class="d-block text-muted">{{ product.barcode or 'Sem código' }} · PLU {{ product.plu or '—' }}</small></td><td><span class="expiry-badge expiry-{{ tone }}">{% if remaining < 0 %}Vencido há {{ -remaining }} {{ 'dia' if remaining == -1 else 'dias' }}{% elif remaining == 0 %}Vence hoje{% else %}{{ remaining }} {{ 'dia restante' if remaining == 1 else 'dias restantes' }}{% endif %}</span></td><td data-label="Validade">{{ product.validade|data_simples }}</td><td data-label="Local">{{ product.loja.nome }} · {{ product.setor.nome }}</td><td data-label="Quantidade">{{ product.quantidade }}</td><td data-label="Status">{{ product.status }}</td><td><a class="btn btn-outline-primary btn-sm" href="{{ url_for('inventory.detail',item_id=product.id) }}">Detalhes e fotos</a></td></tr>
+{% else %}<tr><td colspan="7" class="text-center py-4">Nenhum produto encontrado para estes filtros.</td></tr>{% endfor %}</tbody></table>
+{% if products.pages > 1 %}<nav class="d-flex flex-wrap gap-3 mt-3" aria-label="Páginas de validades">{% if products.has_prev %}<a href="{{ url_for('inventory.upcoming',page=products.prev_num,dias=days,situacao=mode,busca=term) }}">Anterior</a>{% endif %}<span>{{ products.page }} de {{ products.pages }}</span>{% if products.has_next %}<a href="{{ url_for('inventory.upcoming',page=products.next_num,dias=days,situacao=mode,busca=term) }}">Próxima</a>{% endif %}</nav>{% endif %}
+</section>
+{% endblock %}
