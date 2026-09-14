@@ -60,7 +60,7 @@ def create_app(config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE='Lax',
         SESSION_COOKIE_SECURE=os.getenv('COOKIE_SECURE', 'false').lower() == 'true',
-        MAX_CONTENT_LENGTH=1024 * 1024,
+        MAX_CONTENT_LENGTH=8 * 1024 * 1024,
         SCHEDULER_ENABLED=os.getenv('SCHEDULER_ENABLED', 'false').lower() == 'true',
         PUBLIC_BASE_URL=os.getenv('PUBLIC_BASE_URL', ''),
         MAIL_SERVER=os.getenv('MAIL_SERVER', ''),
@@ -84,6 +84,10 @@ def create_app(config=None):
         raise RuntimeError('Configure SECRET_KEY com uma chave aleatória de pelo menos 32 caracteres.')
 
     csrf.init_app(app)
+    @app.errorhandler(413)
+    def upload_too_large(error):
+        return 'Arquivo muito grande. Volte e escolha uma foto de até 6 MB.', 413
+
     db.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)

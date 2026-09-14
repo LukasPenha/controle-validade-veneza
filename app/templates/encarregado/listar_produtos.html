@@ -18,12 +18,7 @@
                     </div>
                 </div>
                 <div class="col-md-6 d-flex justify-content-end">
-                    <div class="btn-group">
-                        <input type="hidden" name="action" id="actionInput">
-                        <button type="submit" class="btn btn-outline-danger" onclick="document.getElementById('actionInput').value='delete'; return confirm('Tem certeza que deseja arquivar os itens selecionados?');">
-                            <i class="bi bi-trash"></i> <span class="d-none d-md-inline">Arquivar Selecionados</span>
-                        </button>
-                    </div>
+                    <a href="{{ url_for('inventory.index') }}" class="btn btn-outline-primary">Exposição e fotos</a>
                 </div>
             </div>
 
@@ -76,7 +71,7 @@
                                 {{ produto.criado_por.nome_display }}
                             </td>
                             
-                            <td data-label="Ações" class="text-center">
+                            <td data-label="Ações" class="text-center"><a class="btn btn-outline-primary btn-sm" href="{{ url_for('inventory.detail',item_id=produto.id) }}">Exposição e fotos</a>
                                 <button type="button" class="btn btn-outline-primary btn-action" data-bs-toggle="modal" data-bs-target="#editModal-{{ produto.id }}">
                                     <i class="bi bi-pencil-fill"></i>
                                 </button>

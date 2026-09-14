@@ -21,6 +21,8 @@ def capture_changes(session, flush_context, instances):
             continue
         state = inspect(item)
         created = item in session.new
+        if not created and any(state.attrs[field].history.has_changes() for field in ('validade','quantidade','status','loja_id','setor_id')):
+            item.exposure_revision = (item.exposure_revision or 1) + 1
         changes = {}
         for field in FIELDS:
             history = state.attrs[field].history

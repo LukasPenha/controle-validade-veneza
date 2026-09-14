@@ -1,27 +1,27 @@
-# Atualização de 12/09/2026
+# Operação do Controle de Validade Veneza
 
-## Publicar sem perder dados
+## Atualizar o banco existente
 
-1. Preserve o banco atual. Faça uma cópia antes da atualização.
-2. No SQL Editor do Supabase, execute **todo** o arquivo `database/atualizar_20260912.sql`. Aceita as versões `20260909_v2` e `20260909_setores`, inclui os setores que faltarem e não remove usuários/lotes. A transação será cancelada se houver erro. Não reaplique depois de concluída.
-3. Alternativa ao SQL: com a conexão correta, execute `python -m flask --app run db upgrade`. Escolha apenas uma forma.
-4. Publique o código atualizado no Render. Código novo exige banco atualizado; o arquivo `novo_banco.sql` é exclusivamente para instalações vazias.
-5. Abra Lotes e baixas, confira os registros existentes e teste com um lote de teste identificado como tal.
+1. Faça um backup antes de atualizar.
+2. Confira a versão com `SELECT version_num FROM alembic_version;` no SQL Editor do Supabase.
+3. Se estiver em `20260909_v2` ou `20260909_setores`, execute primeiro todo o arquivo `database/atualizar_20260912.sql`.
+4. Se estiver em `20260912_operacao`, execute todo o arquivo `database/atualizar_20260913.sql`. Se já estiver em `20260913_exposicao`, não reaplique.
+5. Alternativa no servidor: `flask --app run db upgrade` executa as migrações pendentes. Para banco totalmente vazio, use apenas `database/novo_banco.sql`.
+6. Publique a nova versão no Render depois de atualizar o banco.
 
-O custo dos lotes antigos fica **não informado**. Não calculamos perdas históricas sem evidência. As permissões das tabelas do aplicativo para os papéis públicos `anon`/`authenticated` do Supabase são removidas; o Flask continua usando sua conexão privada de servidor. Nunca use a senha do banco no navegador.
+As atualizações preservam usuários e produtos. Campos financeiros e de lote antigos ficam apenas por compatibilidade; não são solicitados no cadastro. As fotos são privadas: os papéis públicos da API do Supabase não têm acesso à tabela. O aplicativo acessa pelo servidor.
 
-## Rotina da equipe
+## Produtos, validade e exposição
 
-- Registre o lote pela API ou pelo link **Produto não encontrado ou de fabricação própria**. Esse lançamento excepcional não cria catálogo e não publica dados na Open Food Facts.
-- Informe o custo unitário quando conhecido. Não use zero para representar um valor desconhecido.
-- Em **Lotes e baixas → Detalhes e baixas**, registre venda, descarte ou devolução. Quantidade não pode superar o saldo. Venda exige o preço recebido por unidade; devolução permite crédito confirmado opcional. Informe motivo/referência.
-- Vendas e descartes parciais reduzem o saldo. Duplo envio da mesma baixa não repete a operação. Operações simultâneas são serializadas pelo bloqueio do lote no PostgreSQL.
-- Quando o saldo chega a zero, o lote sai das listas ativas e dos próximos e-mails. Consulte-o em Encerrados. Arquivamento preserva os registros; lotes com saldo exigem baixa antes.
-- Valores de movimentações são preservados. Atualizar o custo não muda baixas passadas. Alterações de saldo diretamente no formulário antigo ficam bloqueadas depois da primeira baixa.
-- O histórico mostra usuário, data, campo e valores anteriores/novos dos lotes desde esta atualização. Não é uma reconstrução retroativa e não substitui auditoria do próprio administrador do banco.
-- O dashboard soma perdas pelo custo das unidades descartadas, receita bruta das vendas e créditos confirmados das devoluções. Usa a data da baixa no ano escolhido e os filtros de loja/setor. Valores sem custo/crédito são sinalizados; receita não é lucro.
+- Pesquise pela descrição ou código de barras, inclusive pela câmera. Se não encontrar, use o registro manual.
+- Cadastre a descrição do produto, validade, código de barras quando houver e PLU opcional. Informe quantidade, loja e setor; para encarregados, loja e setor vêm do usuário. Não é necessário número de lote. Validades diferentes devem ser registradas separadamente.
+- O gerente coloca o produto em **Em Rebaixa**. Em **Produtos e exposição → Detalhes e fotos**, o encarregado da mesma loja e setor envia a foto e descreve onde expôs o produto.
+- O gerente confere as fotos pelo mesmo menu. O dashboard geral mostra produtos com e sem foto atual, respeitando os filtros de loja e setor.
+- Alterar quantidade, validade, status, loja ou setor exige nova foto. Fotos anteriores ficam no histórico. Produtos vencidos não aceitam novas fotos de exposição.
+- Para encerrar o acompanhamento, informe um motivo. O encarregado precisa ter uma foto atual; o gerente pode encerrar exceções com justificativa. Encerrados deixam os alertas e permanecem consultáveis.
+- A data exibida é a de envio. Uma foto serve como evidência para conferência humana, sem garantir automaticamente a exposição ou sua duração.
 
-Não há estorno automático de baixa nesta versão. Confira destino e quantidade antes de confirmar; um ajuste incorreto precisa ser analisado preservando o histórico.
+As imagens aceitas são JPEG, PNG e WebP até 6 MB e 25 megapixels; são convertidas para JPEG de até 1280 pixels e 512 KiB, sem metadados EXIF. Ficam no banco e entram no backup criptografado quando este estiver ativado. Acompanhe o consumo de espaço do banco; o histórico de fotos cresce com o uso. Não há novas credenciais de armazenamento para configurar.
 
 ## Gmail por HTTPS — configuração inicial
 
@@ -87,7 +87,7 @@ pg_restore --exit-on-error --no-owner --no-acl --dbname=BANCO_NOVO veneza.dump
 
 O dump inclui a criação do schema `public`. O comando anterior remove somente esse schema vazio no **banco novo de recuperação**; `RESTRICT` recusa a operação se houver objetos dependentes. Se houver erro, pare e confira o destino. Não use `CASCADE` nem execute esse preparo no banco de produção.
 
-Configure a conexão de restauração por variáveis de ambiente PostgreSQL; não escreva senha no comando. Após conferir usuários, lotes, movimentos e acesso, planeje a troca de `DATABASE_URL`. Sem a frase de criptografia, não é possível recuperar o arquivo. O teste automático é executado com dados fictícios no CI; a recuperação do seu banco real só estará validada após a primeira execução habilitada.
+Configure a conexão de restauração por variáveis de ambiente PostgreSQL; não escreva senha no comando. Após conferir usuários, produtos, fotos e acesso, planeje a troca de `DATABASE_URL`. Sem a frase de criptografia, não é possível recuperar o arquivo. O teste automático é executado com dados fictícios no CI; a recuperação do seu banco real só estará validada após a primeira execução habilitada.
 
 ## Proteção de login
 
@@ -95,4 +95,4 @@ O banco compartilha um limite de 10 tentativas por conta por janela de 15 minuto
 
 ## Testes
 
-Execute `python -m unittest discover -s tests -p 'test_*.py'`. O CI também executa instalação/atualização no PostgreSQL, duas baixas concorrentes e backup/recuperação em bancos descartáveis. A câmera foi verificada por leitura simulada; teste também no aparelho real.
+Execute `python -m unittest discover -s tests -p 'test_*.py'`. O CI também executa instalação/atualização no PostgreSQL, dois envios simultâneos da mesma foto e backup/recuperação em bancos descartáveis. A câmera foi verificada por leitura simulada; teste também no aparelho real.

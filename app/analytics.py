@@ -49,8 +49,11 @@ def dashboard_data():
         detail_query = detail_query.filter(Produto.validade >= today, Produto.validade <= today + timedelta(days=horizon))
     products = detail_query.order_by(Produto.validade, Produto.id).paginate(
         page=request.args.get('page', 1, type=int), per_page=15, error_out=False)
-    from .inventory import financial_data
-    return dict(finances=financial_data(year,store,sector), today=today, year=year, month=month, horizon=horizon, store=store, sector=sector,
+    from .inventory import current_proof_exists
+    display_lots=query.filter(Produto.status=='Em Rebaixa',Produto.validade>=today)
+    exposure_pending=display_lots.filter(~current_proof_exists()).count()
+    exposure_done=display_lots.filter(current_proof_exists()).count()
+    return dict(exposure_pending=exposure_pending,exposure_done=exposure_done,today=today, year=year, month=month, horizon=horizon, store=store, sector=sector,
         mode=mode, bars=bars, yearly=totals(yearly), expired=totals(expired), soon=totals(soon),
         urgent=totals(query.filter(Produto.validade >= today, Produto.validade <= today + timedelta(days=7))),
         expired_ranking=ranking(expired), soon_ranking=ranking(soon), products=products,

@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
-{% block title %}Registrar lote · Veneza{% endblock %}
+{% block title %}Registrar produto · Veneza{% endblock %}
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">CONTROLE DE VALIDADE</span><h1>Registrar lote<span class="heading-dot">.</span></h1><p>Produto identificado. Agora informe os dados da sua loja.</p></div></div>
+<div class="page-heading"><div><span class="eyebrow">CONTROLE DE VALIDADE</span><h1>Registrar produto<span class="heading-dot">.</span></h1><p>Produto identificado. Agora informe os dados da sua loja.</p></div></div>
 <div class="settings-grid">
     <form method="POST" class="panel">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="selection" value="{{ selection }}">
-        {% if manual %}<input type="hidden" name="manual" value="1"><div class="alert alert-info">Lançamento excepcional, sem cadastro de catálogo.</div><label class="form-label" for="nome_produto">Nome do produto</label><input class="form-control mb-3" id="nome_produto" name="nome_produto" minlength="2" maxlength="200" required value="{{ request.form.get('nome_produto','') }}"><label class="form-label" for="barcode">Código de barras (opcional)</label><input class="form-control mb-3" id="barcode" name="barcode" maxlength="14" inputmode="numeric" value="{{ request.form.get('barcode','') }}"><label class="form-label" for="marca">Marca (opcional)</label><input class="form-control mb-3" id="marca" name="marca" maxlength="150" value="{{ request.form.get('marca','') }}">{% endif %}
+        {% if manual %}<input type="hidden" name="manual" value="1"><div class="alert alert-info">Lançamento excepcional, sem cadastro de catálogo.</div><label class="form-label" for="nome_produto">Descrição do produto</label><input class="form-control mb-3" id="nome_produto" name="nome_produto" minlength="2" maxlength="200" required value="{{ request.form.get('nome_produto','') }}"><label class="form-label" for="barcode">Código de barras (opcional)</label><input class="form-control mb-3" id="barcode" name="barcode" maxlength="14" inputmode="numeric" value="{{ request.form.get('barcode','') }}"><label class="form-label" for="marca">Marca (opcional)</label><input class="form-control mb-3" id="marca" name="marca" maxlength="150" value="{{ request.form.get('marca','') }}">{% endif %}
         {% if current_user.role == 'gerente_geral' %}
         <label for="loja_id" class="form-label">Loja</label>
         <select id="loja_id" name="loja_id" class="form-select mb-3" required><option value="">Selecione</option>{% for store in stores %}<option value="{{ store.id }}">{{ store.nome }}</option>{% endfor %}</select>
@@ -14,18 +14,16 @@
         {% if current_user.role != 'encarregado_setor' %}
         <label for="setor_id" class="form-label">Setor</label>
         <select id="setor_id" name="setor_id" class="form-select mb-3" required><option value="">Selecione</option>{% for sector in sectors %}<option value="{{ sector.id }}">{{ sector.nome }}</option>{% endfor %}</select>
-        {% if not sectors %}<div class="alert alert-warning" role="alert">Nenhum setor cadastrado. Peça ao gerente geral para concluir o cadastro dos setores antes de registrar o lote.</div>{% else %}<p class="small text-muted">O lote ficará disponível para os encarregados deste setor na sua loja.</p>{% endif %}
+        {% if not sectors %}<div class="alert alert-warning" role="alert">Nenhum setor cadastrado. Peça ao gerente geral para concluir o cadastro dos setores antes de registrar o produto.</div>{% else %}<p class="small text-muted">O produto ficará disponível para os encarregados deste setor na sua loja.</p>{% endif %}
         {% else %}<p class="status-pill mb-4">{{ current_user.loja.nome }} · {{ current_user.setor.nome }}</p>{% endif %}
         <div class="row g-3">
-            <div class="col-sm-6"><label for="custo_unitario" class="form-label">Custo unitário (R$, opcional)</label><input id="custo_unitario" name="custo_unitario" type="number" min="0" step="0.01" class="form-control"><small class="text-muted">Informe para calcular as perdas das próximas baixas.</small></div>
             <div class="col-sm-6"><label for="quantidade" class="form-label">Quantidade de unidades</label><input id="quantidade" name="quantidade" type="number" min="1" max="2147483647" class="form-control" required></div>
             <div class="col-sm-6"><label for="validade" class="form-label">Validade da embalagem</label><input id="validade" name="validade" type="date" class="form-control" required></div>
-            <div class="col-sm-6"><label for="lote" class="form-label">Número do lote (opcional)</label><input id="lote" name="lote" maxlength="80" class="form-control"></div>
             <div class="col-sm-6"><label for="plu" class="form-label">PLU interno (opcional)</label><input id="plu" name="plu" maxlength="50" class="form-control"></div>
         </div>
         <label for="motivo_rebaixa" class="form-label mt-3">Observação (opcional)</label>
         <input id="motivo_rebaixa" name="motivo_rebaixa" maxlength="255" class="form-control">
-        <button type="submit" class="btn btn-primary w-100 mt-4">Registrar lote</button>
+        <button type="submit" class="btn btn-primary w-100 mt-4">Registrar produto</button>
     </form>
     <aside class="panel align-self-start settings-aside">{% if manual %}<span class="eyebrow">PRODUTO NÃO ENCONTRADO</span><h2 class="mt-3">Continue o trabalho.</h2><p>Use para itens de fabricação própria, sem código ou ausentes na API. Confira nome, setor e validade antes de registrar.</p>{% else %}<span class="eyebrow">PRODUTO SELECIONADO</span><h2 class="mt-3">{{ product.nome }}</h2><p>{{ product.marca }} {{ '· ' ~ product.embalagem if product.embalagem else '' }}</p><p class="date-chip d-inline-block">{{ product.barcode }}</p><p class="small text-muted">Confira a validade na embalagem.</p><a href="{{ product.source_url }}" target="_blank" rel="noopener noreferrer" class="small">Fonte: Open Food Facts · ODbL</a>{% endif %}<br><a href="{{ url_for('routes.datas_curtas') }}" class="btn btn-outline-primary mt-4">Voltar à pesquisa</a></aside>
 </div>

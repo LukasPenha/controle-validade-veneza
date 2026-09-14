@@ -103,7 +103,7 @@ def backup(output):
            'DROP SCHEMA IF EXISTS public RESTRICT')
         pg(folder,target,'pg_restore','--exit-on-error','--no-owner','--no-acl','--dbname',target['PGDATABASE'],'/work/restore.dump')
         pg(folder,target,'psql','-X','-v','ON_ERROR_STOP=1','-tAc',
-           'SELECT count(*) FROM public.usuario; SELECT count(*) FROM public.produto; SELECT count(*) FROM public.movimento; SELECT count(*) FROM public.audit_event;')
+           'SELECT count(*) FROM public.usuario; SELECT count(*) FROM public.produto; SELECT count(*) FROM public.movimento; SELECT count(*) FROM public.audit_event; SELECT count(*) FROM public.exposure_proof;')
         output.parent.mkdir(parents=True,exist_ok=True)
         shutil.copyfile(folder/'backup.gpg',output)
     print('Backup criptografado criado e restauração local verificada.')

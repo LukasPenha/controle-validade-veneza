@@ -35,9 +35,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 brand.className = 'd-block text-muted mt-1';
                 details.append(name, brand);
                 const select = document.createElement('a');
-                select.href = `/lotes/novo?selection=${encodeURIComponent(item.selection)}`;
+                select.href = `/produtos/novo?selection=${encodeURIComponent(item.selection)}`;
                 select.className = 'btn btn-outline-primary';
-                select.textContent = 'Registrar lote →';
+                select.textContent = 'Registrar produto →';
                 card.append(details, select);
                 results.append(card);
             }

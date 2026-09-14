@@ -53,9 +53,9 @@ CREATE TABLE audit_event (
 	PRIMARY KEY (id)
 );
 
-CREATE INDEX ix_audit_event_produto_id ON audit_event (produto_id);
-
 CREATE INDEX ix_audit_event_timestamp ON audit_event (timestamp);
+
+CREATE INDEX ix_audit_event_produto_id ON audit_event (produto_id);
 
 CREATE INDEX ix_audit_event_loja_id ON audit_event (loja_id);
 
@@ -83,11 +83,11 @@ CREATE TABLE usuario (
 	FOREIGN KEY(setor_id) REFERENCES setor (id) ON DELETE RESTRICT
 );
 
+CREATE INDEX ix_usuario_loja_id ON usuario (loja_id);
+
 CREATE INDEX ix_usuario_setor_id ON usuario (setor_id);
 
 CREATE UNIQUE INDEX uq_usuario_username_lower ON usuario (lower(username));
-
-CREATE INDEX ix_usuario_loja_id ON usuario (loja_id);
 
 CREATE TABLE produto (
 	id SERIAL NOT NULL,
@@ -101,6 +101,7 @@ CREATE TABLE produto (
 	quantidade INTEGER NOT NULL,
 	custo_unitario NUMERIC(12, 2),
 	arquivado BOOLEAN DEFAULT false NOT NULL,
+	exposure_revision INTEGER DEFAULT '1' NOT NULL,
 	validade DATE NOT NULL,
 	status VARCHAR(50) NOT NULL,
 	data_cadastro TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -118,15 +119,15 @@ CREATE TABLE produto (
 	FOREIGN KEY(criado_por_id) REFERENCES usuario (id) ON DELETE SET NULL
 );
 
+CREATE INDEX ix_produto_loja_setor_validade ON produto (loja_id, setor_id, validade);
+
 CREATE INDEX ix_produto_validade ON produto (validade);
+
+CREATE INDEX ix_produto_criado_por_id ON produto (criado_por_id);
 
 CREATE INDEX ix_produto_barcode ON produto (barcode);
 
 CREATE INDEX ix_produto_status_validade ON produto (status, validade);
-
-CREATE INDEX ix_produto_criado_por_id ON produto (criado_por_id);
-
-CREATE INDEX ix_produto_loja_setor_validade ON produto (loja_id, setor_id, validade);
 
 CREATE TABLE email_preference (
 	user_id INTEGER NOT NULL,
@@ -189,9 +190,9 @@ CREATE TABLE email_delivery (
 	FOREIGN KEY(user_id) REFERENCES usuario (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_delivery_user_created ON email_delivery (user_id, created_at);
-
 CREATE INDEX ix_delivery_pending ON email_delivery (status, next_attempt_at);
+
+CREATE INDEX ix_delivery_user_created ON email_delivery (user_id, created_at);
 
 CREATE TABLE notificacao (
 	id SERIAL NOT NULL,
@@ -212,9 +213,9 @@ CREATE TABLE notificacao (
 	FOREIGN KEY(setor_id) REFERENCES setor (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_notificacao_scope ON notificacao (loja_id, setor_id, resolved_at, timestamp);
-
 CREATE INDEX ix_notificacao_produto_id ON notificacao (produto_id);
+
+CREATE INDEX ix_notificacao_scope ON notificacao (loja_id, setor_id, resolved_at, timestamp);
 
 CREATE TABLE movimento (
 	id SERIAL NOT NULL,
@@ -240,6 +241,25 @@ CREATE INDEX ix_movimento_produto_id ON movimento (produto_id);
 
 CREATE INDEX ix_movimento_timestamp ON movimento (timestamp);
 
+CREATE TABLE exposure_proof (
+	id SERIAL NOT NULL,
+	produto_id INTEGER NOT NULL,
+	revision INTEGER NOT NULL,
+	actor VARCHAR(254) NOT NULL,
+	note VARCHAR(255) NOT NULL,
+	quantidade INTEGER NOT NULL,
+	validade DATE NOT NULL,
+	timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+	image_sha VARCHAR(64) NOT NULL,
+	image_data BYTEA NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_exposure_image UNIQUE (produto_id, revision, image_sha),
+	CONSTRAINT ck_exposure_size CHECK (length(image_data) <= 524288),
+	FOREIGN KEY(produto_id) REFERENCES produto (id) ON DELETE RESTRICT
+);
+
+CREATE INDEX ix_exposure_current ON exposure_proof (produto_id, revision);
+
 CREATE TABLE notificacao_lida (
 	usuario_id INTEGER NOT NULL,
 	notificacao_id INTEGER NOT NULL,
@@ -255,7 +275,7 @@ VALUES ('Padaria'), ('Açougue'), ('Mercearia'), ('Frios'),
 ON CONFLICT (nome) DO NOTHING;
 
 CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);
-INSERT INTO alembic_version VALUES ('20260912_operacao');
+INSERT INTO alembic_version VALUES ('20260913_exposicao');
 DO $$ DECLARE role_name text; BEGIN
         FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
@@ -264,6 +284,14 @@ DO $$ DECLARE role_name text; BEGIN
             public.email_token, public.email_delivery, public.job_state, public.external_lookup_cache,
             public.api_budget, public.movimento, public.audit_event, public.login_limit,
             public.alembic_version FROM %I', role_name);
+          END IF;
+        END LOOP; END $$;
+
+
+DO $$ DECLARE role_name text; BEGIN
+        FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
+          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
+            EXECUTE format('REVOKE ALL ON TABLE public.exposure_proof FROM %I', role_name);
           END IF;
         END LOOP; END $$;
 

@@ -1,4 +1,7 @@
 """Integration checks against disposable CI PostgreSQL only."""
+import io
+from PIL import Image
+from datetime import date, timedelta
 import os
 import sys
 from pathlib import Path
@@ -9,7 +12,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy import text
 from flask_migrate import upgrade
 from app import create_app, db
-from app.models import Produto, Usuario, Movimento
+from app.models import Produto, Usuario, ExposureProof
 
 uri=os.environ['DATABASE_URL']
 url=make_url(uri)
@@ -29,31 +32,39 @@ with app.app_context():
     raw=db.engine.raw_connection()
     with raw.cursor() as cursor:
         cursor.execute(Path('database/atualizar_20260912.sql').read_text(encoding='utf-8'))
+        cursor.execute(Path('database/atualizar_20260913.sql').read_text(encoding='utf-8'))
     raw.commit()
     raw.close()
     item=Produto.query.one()
     assert item.quantidade==10 and item.custo_unitario is None
-    user=Usuario(username='ci@example.test',role='gerente',loja_id=1)
+    user=Usuario(username='ci@example.test',role='encarregado_setor',loja_id=1,setor_id=1)
     user.set_password('Test-only-password')
+    item.status='Em Rebaixa'
+    item.validade=date.today()+timedelta(days=30)
     db.session.add(user)
     db.session.commit()
     identity=user.get_id()
     item_id=item.id
+    revision=item.exposure_revision
 
 def submit(key):
     client=app.test_client()
     with client.session_transaction() as session:
         session['_user_id']=identity
         session['_fresh']=True
-    return client.post(f'/lotes/{item_id}',data=dict(action='movement',request_key=key,quantidade=7,
-        tipo='venda',valor_unitario='2.50',motivo='Concurrent test')).status_code
+    stream=io.BytesIO()
+    Image.new('RGB',(80,60),'red').save(stream,format='PNG')
+    stream.seek(0)
+    return client.post(f'/produtos/{item_id}/exposicao',data={
+        'foto':(stream,'foto.png'),'observacao':'Exposição teste','revision':revision}).status_code
 
 with ThreadPoolExecutor(max_workers=2) as pool:
     assert list(pool.map(submit,['a'*32,'b'*32])) == [302,302]
 with app.app_context():
     db.session.expire_all()
-    assert db.session.get(Produto,item_id).quantidade==3
-    assert Movimento.query.count()==1
+    assert db.session.get(Produto,item_id).quantidade==10
+    assert ExposureProof.query.count()==1
+    assert ExposureProof.query.one().image_data.startswith(b"\xff\xd8")
     db.session.remove()
     db.engine.dispose()
 connection=psycopg2.connect(uri)
@@ -69,4 +80,4 @@ with fresh.cursor() as cursor:
     assert cursor.fetchone()[0]==6
 fresh.commit()
 fresh.close()
-print('PostgreSQL: atualização preservou lote, instalação vazia validada e baixa concorrente respeitou saldo.')
+print('PostgreSQL: atualização preservou produto, instalação vazia validada e foto concorrente não duplicou registro.')

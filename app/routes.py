@@ -191,7 +191,7 @@ def excluir_loja(loja_id):
     if current_user.role != 'gerente_geral': return redirect(url_for('routes.index'))
     loja_para_excluir = Loja.query.get_or_404(loja_id)
     if loja_para_excluir.usuarios or loja_para_excluir.produtos:
-        flash(f'Não é possível excluir a loja "{loja_para_excluir.nome}", pois ela possui usuários ou lotes vinculados.', 'danger')
+        flash(f'Não é possível excluir a loja "{loja_para_excluir.nome}", pois ela possui usuários ou produtos vinculados.', 'danger')
     else:
         db.session.delete(loja_para_excluir)
         db.session.commit()
@@ -328,20 +328,8 @@ def pagina_produtos_vencidos():
 @routes.route('/produtos/bulk-action', methods=['POST'])
 @login_required
 def bulk_action():
-    action = request.form.get('action'); selected_ids = request.form.getlist('selected_ids')
-    if not selected_ids:
-        flash('Nenhum item selecionado.', 'warning'); return redirect(url_for('routes.index'))
-    produtos = Produto.query.filter(Produto.arquivado.is_(False), Produto.id.in_(selected_ids)).with_for_update().all()
-    if action == 'delete':
-        count = 0
-        for produto in produtos:
-            if (current_user.role == 'gerente_geral' or (current_user.role == 'gerente' and produto.loja_id == current_user.loja_id) or (current_user.role == 'encarregado_setor' and produto.loja_id == current_user.loja_id and produto.setor_id == current_user.setor_id)):
-                if produto.quantidade == 0:
-                    produto.arquivado = True
-                    count += 1
-        flash(f'{count} lotes sem saldo foram arquivados. Lotes com saldo precisam de baixa antes.', 'info')
-    db.session.commit()
-    return redirect(url_for('routes.index'))
+    flash('Abra o produto para encerrar o acompanhamento e informar o motivo.', 'info')
+    return redirect(url_for('inventory.index'))
 
 @routes.route('/produtos/<int:produto_id>/editar', methods=['POST'])
 @login_required
@@ -360,10 +348,6 @@ def editar_produto(produto_id):
     except (ValueError, TypeError):
         flash('Confira a quantidade positiva, validade e motivo.', 'danger')
         return redirect(url_for('routes.listar_produtos_encarregado'))
-    from .models import Movimento
-    if quantity != produto.quantidade and Movimento.query.filter_by(produto_id=produto.id).first():
-        flash('Este lote já possui baixas. Registre as próximas saídas em Lotes e baixas.', 'warning')
-        return redirect(url_for('inventory.detail',item_id=produto.id))
     produto.quantidade, produto.validade, produto.motivo_rebaixa = quantity, validity, reason
     db.session.commit()
     flash('Produto atualizado com sucesso!', 'success')
@@ -374,7 +358,7 @@ def editar_produto(produto_id):
 @login_required
 def alterar_status(produto_id):
     if current_user.role != 'gerente': return redirect(url_for('routes.index'))
-    produto = Produto.query.get_or_404(produto_id)
+    produto = Produto.query.filter_by(id=produto_id,arquivado=False).with_for_update().first_or_404()
     if produto.loja_id != current_user.loja_id: return redirect(url_for('routes.index'))
     novo_status = request.form.get('status')
     if novo_status == produto.status:
@@ -395,13 +379,7 @@ def excluir_produto(produto_id):
     produto = Produto.query.get_or_404(produto_id)
     if current_user.role == 'encarregado_setor' and (produto.loja_id != current_user.loja_id or produto.setor_id != current_user.setor_id): return redirect(url_for('routes.index'))
     if current_user.role == 'gerente' and produto.loja_id != current_user.loja_id: return redirect(url_for('routes.index'))
-    if produto.quantidade > 0:
-        flash('Registre a baixa do saldo antes de arquivar o lote.', 'warning')
-        return redirect(url_for('inventory.detail',item_id=produto.id))
-    produto.arquivado = True
-    db.session.commit()
-    flash('Lote arquivado. O histórico foi preservado.', 'success')
-    return redirect(url_for('routes.index'))
+    return redirect(url_for('inventory.detail',item_id=produto.id))
 
 # --- ROTAS PARA DATAS CURTAS ---
 @routes.route('/datas-curtas')

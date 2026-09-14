@@ -37,5 +37,19 @@ END IF; END $$;
     upgrade='-- ATUALIZAÇÃO DO BANCO EXISTENTE, SEM APAGAR LOTES OU USUÁRIOS.\nBEGIN;\nSET LOCAL search_path TO public;\n'+guard+seed+'\n'+ddl
     upgrade+="UPDATE alembic_version SET version_num='20260912_operacao';\nCOMMIT;\n"
     (root/'database/atualizar_20260912.sql').write_text('\n'.join(line.rstrip() for line in upgrade.splitlines())+'\n',encoding='utf-8')
+    photo_output=io.StringIO()
+    photo_context=MigrationContext.configure(dialect_name='postgresql',dialect_opts={'paramstyle':'named'},opts={'as_sql':True,'output_buffer':photo_output})
+    with Operations.context(photo_context):
+        spec=importlib.util.spec_from_file_location('upgrade_exposure',root/'migrations/versions/20260913_exposicao.py')
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.upgrade()
+    photo_ddl=photo_output.getvalue()
+    photo_guard=guard.replace("version_num IN ('20260909_v2','20260909_setores')", "version_num='20260912_operacao'")
+    photo_sql='-- ATUALIZAÇÃO: FOTOS DA EXPOSIÇÃO. Execute após atualizar_20260912.sql.\nBEGIN;\nSET LOCAL search_path TO public;\n'+photo_guard+photo_ddl+"UPDATE alembic_version SET version_num='20260913_exposicao';\nCOMMIT;\n"
+    (root/'database/atualizar_20260913.sql').write_text(photo_sql,encoding='utf-8')
+    sql=sql.replace("VALUES ('20260912_operacao')", "VALUES ('20260913_exposicao')")
+    sql=sql.replace('\nCOMMIT;', '\n'+photo_ddl[photo_ddl.index('DO $$'):]+'\nCOMMIT;')
+    (root/'database/novo_banco.sql').write_text('\n'.join(line.rstrip() for line in sql.splitlines())+'\n',encoding='utf-8')
     db.engine.dispose()
 print('SQL de instalação e atualização gerados; migrações existentes preservadas.')

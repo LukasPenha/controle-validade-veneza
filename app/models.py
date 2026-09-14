@@ -117,6 +117,7 @@ class Produto(db.Model):
     quantidade = db.Column(db.Integer, nullable=False)
     custo_unitario = db.Column(db.Numeric(12, 2))
     arquivado = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    exposure_revision = db.Column(db.Integer, nullable=False, default=1, server_default='1')
     validade = db.Column(db.Date, nullable=False, index=True)
     status = db.Column(db.String(50), nullable=False, default='Para Rebaixa')
     data_cadastro = db.Column(UTCDateTime(), nullable=False, default=utcnow)
@@ -207,3 +208,22 @@ class LoginLimit(db.Model):
     key = db.Column(db.String(64), primary_key=True)
     attempts = db.Column(db.Integer, nullable=False, default=0)
     expires_at = db.Column(UTCDateTime(), nullable=False, index=True)
+
+
+class ExposureProof(db.Model):
+    __tablename__ = 'exposure_proof'
+    __table_args__ = (
+        db.UniqueConstraint('produto_id','revision','image_sha',name='uq_exposure_image'),
+        db.CheckConstraint('length(image_data) <= 524288',name='ck_exposure_size'),
+        db.Index('ix_exposure_current','produto_id','revision'),
+    )
+    id = db.Column(db.Integer,primary_key=True)
+    produto_id = db.Column(db.Integer,db.ForeignKey('produto.id',ondelete='RESTRICT'),nullable=False)
+    revision = db.Column(db.Integer,nullable=False)
+    actor = db.Column(db.String(254),nullable=False)
+    note = db.Column(db.String(255),nullable=False)
+    quantidade = db.Column(db.Integer,nullable=False)
+    validade = db.Column(db.Date,nullable=False)
+    timestamp = db.Column(UTCDateTime(),nullable=False,default=utcnow)
+    image_sha = db.Column(db.String(64),nullable=False)
+    image_data = db.deferred(db.Column(db.LargeBinary,nullable=False))

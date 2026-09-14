@@ -1,10 +1,10 @@
 # Controle de validade Veneza
 
-Aplicação Flask para lotes por loja e setor, dashboard executivo, central de alertas e e-mails personalizados.
+Aplicação Flask para produtos por loja e setor, dashboard executivo, central de alertas e e-mails personalizados.
 
-A V2 usa consulta gratuita à Open Food Facts por nome ou código de barras, com câmera. O catálogo interno foi removido. Quantidade, validade e lote são informados após selecionar o produto.
+A V2 usa consulta gratuita à Open Food Facts por nome ou código de barras, com câmera. O catálogo interno foi removido. Descrição, validade, código de barras e PLU opcional identificam o produto; quantidade e setor permitem acompanhar a rebaixa. Não é necessário registrar lote.
 
-**Já usa a V2? Não apague o banco.** Execute [a atualização de 12/09](database/atualizar_20260912.sql) ou `flask --app run db upgrade` antes de publicar. Ela preserva usuários e lotes. Para instalações vazias, use o [SQL completo](database/novo_banco.sql). Veja o [guia de operação, Gmail e backups](docs/OPERACAO.md).
+**Já usa a V2?** Siga a sequência de atualização no [guia de operação](docs/OPERACAO.md): a atualização de 13/09 acrescenta fotos privadas da exposição. Alternativamente, `flask --app run db upgrade` executa as migrações pendentes. Para instalações vazias, use o [SQL completo](database/novo_banco.sql).
 
 ## Executar
 
@@ -25,6 +25,6 @@ Usam banco em memória, sem acessar o `.env`. `tests/preview_app.py` usa dados f
 
 ## Produção
 
-Use HTTPS, `COOKIE_SECURE=true` e PostgreSQL. A versão inclui Gmail por HTTPS/OAuth, baixas parciais, custos, auditoria e proteção de login. Os workflows de e-mail e backup vêm desativados até configurar as credenciais e variáveis conforme o [guia](docs/OPERACAO.md). SMTP continua disponível em hospedagens compatíveis.
+Use HTTPS, `COOKIE_SECURE=true` e PostgreSQL. A versão inclui Gmail por HTTPS/OAuth, fotos da exposição, acompanhamento de rebaixa, auditoria e proteção de login. Os workflows de e-mail e backup vêm desativados até configurar as credenciais e variáveis conforme o [guia](docs/OPERACAO.md). SMTP continua disponível em hospedagens compatíveis.
 
 Dados: [Open Food Facts](https://world.openfoodfacts.org), sob [ODbL e termos de uso](https://world.openfoodfacts.org/terms-of-use). Cobertura não garantida; confira a embalagem.

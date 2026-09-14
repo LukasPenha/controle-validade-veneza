@@ -98,7 +98,7 @@
                     </div>
 
                     <ul class="nav flex-column sidebar-nav">
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.index') }}"><i class="bi bi-box-seam"></i> Lotes e baixas</a></li>
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.index') }}"><i class="bi bi-box-seam"></i> Produtos e exposição</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.history') }}"><i class="bi bi-clock-history"></i> Histórico</a></li>
                         {% if current_user.role == 'gerente_geral' %}
                             <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_geral') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
@@ -126,7 +126,7 @@
                              <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_trocas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_trocas') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
                              <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Geral)</a></li>
                         {% endif %}
-                        {% if current_user.role == 'gerente_geral' %}<li class="nav-item"><a class="nav-link" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-upc-scan"></i> Registrar lote</a></li>{% endif %}
+                        {% if current_user.role == 'gerente_geral' %}<li class="nav-item"><a class="nav-link" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-upc-scan"></i> Registrar produto</a></li>{% endif %}
                         <li class="nav-item"><a class="nav-link {% if request.blueprint == 'notifications' %}active{% endif %}" href="{{ url_for('notifications.center') }}"><i class="bi bi-bell"></i> Central de alertas {% if unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}</a></li>
                         <li class="nav-item"><a class="nav-link {% if request.endpoint == 'profile.settings' %}active{% endif %}" href="{{ url_for('profile.settings') }}"><i class="bi bi-sliders2"></i> Meu perfil e alertas</a></li>
                     </ul>
