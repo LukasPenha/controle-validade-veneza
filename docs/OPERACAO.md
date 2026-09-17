@@ -15,6 +15,8 @@ As atualizações preservam usuários e produtos. Campos financeiros e de lote a
 
 ## Produtos, validade e exposição
 
+Menus e acessos seguem o perfil: gerente geral tem Validades próximas, Dashboard, lojas, usuários, relatórios e perfil; auxiliar tem Validades próximas, Datas curtas (incluindo cadastro de produto) e Central de alertas; trocas tem relatórios, vencidos de todas as lojas e Validades próximas com filtros de loja, setor, descrição, código ou PLU. Trocas não recebe alertas internos nem e-mails de alerta, inclusive os pendentes; recuperação de senha continua disponível. Gerentes e encarregados mantêm suas funções, com rolagem vertical do menu. As restrições são verificadas no servidor e nos menus.
+
 O menu **Validades próximas** lista os produtos ativos em ordem crescente de dias restantes. O padrão é até 30 dias, com filtro de 0 a 365 dias e atalhos de 10, 15 e 30. Vermelho indica 0–10 dias; amarelo, 11–15; verde, 16–30; acima de 30, cinza. Vencidos têm uma aba própria. Busca por descrição, código ou PLU e permissões por loja/setor se aplicam à listagem. Esta tela não depende dos relatórios nem exige nova migração além da atualização de fotos descrita acima.
 
 - Pesquise pela descrição ou código de barras, inclusive pela câmera. Se não encontrar, use o registro manual.

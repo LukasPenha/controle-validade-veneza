@@ -98,38 +98,9 @@
                     </div>
 
                     <ul class="nav flex-column sidebar-nav">
-                        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == 'inventory.upcoming' }}" href="{{ url_for('inventory.upcoming') }}"><i class="bi bi-calendar-range"></i> Validades próximas</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.index') }}"><i class="bi bi-box-seam"></i> Produtos e exposição</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('inventory.history') }}"><i class="bi bi-clock-history"></i> Histórico</a></li>
-                        {% if current_user.role == 'gerente_geral' %}
-                            <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_geral') }}"><i class="bi bi-speedometer2"></i> Dashboard</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_lojas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_lojas') }}"><i class="bi bi-shop"></i> Gerenciar Lojas</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'gerenciar_usuarios' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.gerenciar_usuarios_geral') }}"><i class="bi bi-person-plus"></i> Gerenciar Usuários</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'relatorio_gerente_geral' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_gerente_geral') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
-                        
-                        {% elif current_user.role == 'gerente' %}
-                            <li class="nav-item"><a class="nav-link {% if 'produtos_para_rebaixa' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.produtos_para_rebaixa') }}"><i class="bi bi-arrow-down-circle"></i> Para Rebaixa</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'produtos_em_rebaixa' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.produtos_em_rebaixa') }}"><i class="bi bi-tag"></i> Em Rebaixa</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'relatorio_gerente' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_gerente') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
-                            <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Loja)</a></li>
-                        
-                        {% elif current_user.role == 'encarregado_setor' %}
-                            <li class="nav-item"><a class="nav-link {% if 'listar_produtos' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.listar_produtos_encarregado') }}"><i class="bi bi-list-task"></i> Listar Produtos</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
-                            <li class="nav-item"><a class="nav-link {% if 'relatorio_encarregado' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.relatorio_encarregado') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
-                            <li class="nav-item"><a class="nav-link text-danger {% if 'vencidos_encarregado' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.vencidos_encarregado') }}"><i class="bi bi-trash"></i> Vencidos (Setor)</a></li>
-
-                        {% elif current_user.role == 'auxiliar_gestao' %}
-                             <li class="nav-item"><a class="nav-link {% if 'datas_curtas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-calendar-x"></i> Datas Curtas</a></li>
-                        
-                        {% elif current_user.role == 'gerente_trocas' %}
-                             <li class="nav-item"><a class="nav-link {% if 'dashboard_gerente_trocas' in request.endpoint %}active{% endif %}" href="{{ url_for('routes.dashboard_gerente_trocas') }}"><i class="bi bi-file-earmark-bar-graph"></i> Relatórios</a></li>
-                             <li class="nav-item"><a class="nav-link text-danger {% if 'pagina_produtos_vencidos' in request.endpoint %}active bg-danger-subtle{% endif %}" href="{{ url_for('routes.pagina_produtos_vencidos') }}"><i class="bi bi-trash"></i> Vencidos (Geral)</a></li>
-                        {% endif %}
-                        {% if current_user.role == 'gerente_geral' %}<li class="nav-item"><a class="nav-link" href="{{ url_for('routes.datas_curtas') }}"><i class="bi bi-upc-scan"></i> Registrar produto</a></li>{% endif %}
-                        <li class="nav-item"><a class="nav-link {% if request.blueprint == 'notifications' %}active{% endif %}" href="{{ url_for('notifications.center') }}"><i class="bi bi-bell"></i> Central de alertas {% if unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}</a></li>
-                        <li class="nav-item"><a class="nav-link {% if request.endpoint == 'profile.settings' %}active{% endif %}" href="{{ url_for('profile.settings') }}"><i class="bi bi-sliders2"></i> Meu perfil e alertas</a></li>
+                        {% for endpoint,label,icon in navigation_items %}
+                        <li class="nav-item"><a class="nav-link {{ 'active' if request.endpoint == endpoint }}" href="{{ url_for(endpoint) }}"><i class="bi bi-{{ icon }}"></i><span>{{ label }}</span>{% if endpoint == 'notifications.center' and unread_notification_count %}<span class="badge bg-danger">{{ unread_notification_count }}</span>{% endif %}</a></li>
+                        {% endfor %}
                     </ul>
 
                     <div class="sidebar-footer">

@@ -21,9 +21,9 @@ def alert_content(user, pref, today):
         Produto.validade <= today + timedelta(days=pref.days_max),
     ).order_by(Produto.validade, Produto.id).all()
     units = sum(p.quantidade for p in products)
-    subject = f'Veneza | {units} unidades em {len(products)} lotes próximos do vencimento'
+    subject = f'Veneza | {units} unidades em {len(products)} produtos próximos do vencimento'
     body = (f'Olá, {user.nome_display}.\nResumo de {today:%d/%m/%Y}: de {pref.days_min} a {pref.days_max} dias.\n\n'
-            + '\n'.join(f'{p.nome_produto} | Código {p.barcode} | Lote {p.lote or "não informado"} | '
+            + '\n'.join(f'{p.nome_produto} | Código {p.barcode} | '
                         f'{p.quantidade} un. | {p.validade:%d/%m/%Y} | {p.loja.nome} / {p.setor.nome}' for p in products)
             + '\n\nAjuste a frequência ou desative os e-mails em Meu perfil e alertas.')
     return products, subject, body
@@ -41,7 +41,7 @@ def queue_due_alerts(now=None):
         if EmailDelivery.query.filter_by(delivery_key=key).first():
             continue
         user = db.session.get(Usuario, pref.user_id)
-        if not user:
+        if not user or user.role == 'gerente_trocas':
             continue
         products, subject, body = alert_content(user, pref, now.date())
         try:
@@ -78,6 +78,10 @@ def send_message(message):
 
 def deliver_pending(now=None):
     now = now or utcnow()
+    trade_users = db.session.query(Usuario.id).filter_by(role='gerente_trocas')
+    EmailDelivery.query.filter(EmailDelivery.user_id.in_(trade_users),
+        EmailDelivery.kind.in_(['alert','verify']), EmailDelivery.status == 'pending').update(
+            {'status':'cancelled', 'body':''}, synchronize_session=False)
     # Do not blindly resend an interrupted SMTP transaction: it may already have been accepted.
     EmailDelivery.query.filter(EmailDelivery.status == 'sending',
         EmailDelivery.started_at < now - timedelta(minutes=10)).update({
@@ -100,7 +104,7 @@ def deliver_pending(now=None):
                 item.status, item.body = 'expired', ''
                 db.session.commit()
                 continue
-            if not user or not pref or not pref.enabled or not pref.verified or pref.address != item.recipient:
+            if not user or user.role == 'gerente_trocas' or not pref or not pref.enabled or not pref.verified or pref.address != item.recipient:
                 item.status, item.body = 'cancelled', ''
                 db.session.commit()
                 continue

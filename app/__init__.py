@@ -112,6 +112,8 @@ def create_app(config=None):
     app.register_blueprint(notifications_bp)
     from .database import register_database_commands
     register_database_commands(app)
+    from .access import register_access
+    register_access(app)
 
     @login_manager.unauthorized_handler
     def unauthorized():

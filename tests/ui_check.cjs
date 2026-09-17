@@ -17,7 +17,7 @@ const fs = require('fs');
   await page.screenshot({path:path.join(output,'dashboard-overview.png')});
   for (const width of [1440,768,390,320]) {
     await page.setViewportSize({width,height:1000});
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(400); // Allow responsive margin/transform transitions to finish.
     if (width === 390) await page.screenshot({path:path.join(output,'dashboard-mobile.png'),fullPage:true});
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) {
       console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).map(el=>[el.tagName,el.className,el.getBoundingClientRect().right]).slice(0,20)));
@@ -31,7 +31,11 @@ const fs = require('fs');
   await page.goto('http://127.0.0.1:8012/validades-proximas');
   for (const width of [1440,768,390,320]) {
     await page.setViewportSize({width,height:1000});
-    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow upcoming ${width}`);
+    await page.waitForTimeout(400);
+    if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) {
+      console.log(await page.evaluate(() => [...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1).map(el=>[el.tagName,el.className,el.getBoundingClientRect().right]).slice(0,12)));
+      throw new Error(`Overflow upcoming ${width}`);
+    }
     if (width === 390) await page.screenshot({path:path.join(output,'upcoming-mobile.png'),fullPage:true});
   }
   await page.locator('#expiry-days').fill('10');
@@ -41,7 +45,9 @@ const fs = require('fs');
   await page.screenshot({path:path.join(output,'profile-mobile.png'),fullPage:true});
   await page.getByLabel('Frequência',{exact:true}).selectOption('weekly');
   if (!(await page.locator('#weekday').isEnabled())) throw new Error('Weekly weekday disabled');
-  for (const route of ['/gerente-geral/lojas','/gerente-geral/usuarios','/datas-curtas','/notifications','/gerente-geral/relatorio','/produtos/vencidos']) {
+  const generalMenu = await page.locator('.sidebar-nav .nav-link').allTextContents();
+  if (generalMenu.length !== 6 || generalMenu.some(label=>/Histórico|Central de alertas|Registrar produto/.test(label))) throw new Error('Incorrect general menu');
+  for (const route of ['/gerente-geral/lojas','/gerente-geral/usuarios','/gerente-geral/relatorio']) {
     await page.goto('http://127.0.0.1:8012'+route);
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow ${route}`);
   }
@@ -97,15 +103,41 @@ const fs = require('fs');
     await page.goto('http://127.0.0.1:8012'+route);
     if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow ${route}`);
   }
-  for (const [user,routes] of [['gerente',['/gerente/para-rebaixa','/gerente/em-rebaixa','/gerente/relatorio','/produtos/vencidos']],['auxiliar',['/auxiliar/dashboard']],['trocas',['/gerente-trocas/dashboard']]]) {
+  for (const [user,routes] of [['gerente',['/gerente/para-rebaixa','/gerente/em-rebaixa','/gerente/relatorio','/produtos/vencidos']],['auxiliar',['/validades-proximas','/datas-curtas','/notifications']],['trocas',['/gerente-trocas/dashboard','/validades-proximas','/produtos/vencidos']]]) {
     await page.getByRole('button',{name:'Sair'}).click();
     await page.locator('#username').fill(user);
     await page.locator('#password').fill('Demo-veneza-2026');
     await page.getByRole('button',{name:'Entrar no sistema'}).click();
     await page.waitForURL(url=>!url.pathname.includes('/login'));
+    if (user === 'gerente') {
+      for (const width of [1024,390]) {
+        await page.setViewportSize({width,height:500});
+        if (width === 390) {
+          await page.getByRole('button',{name:'Toggle navigation'}).click();
+          await page.locator('#sidebarMenu.show').waitFor();
+          await page.waitForTimeout(400);
+        }
+        const layout = await page.locator('.sidebar-nav').evaluate(el=>({width:el.clientWidth,scroll:el.scrollWidth,height:el.clientHeight,scrollHeight:el.scrollHeight,wrap:getComputedStyle(el).flexWrap}));
+        if (layout.scroll > layout.width+1 || layout.wrap !== 'nowrap' || layout.scrollHeight <= layout.height) throw new Error('Sidebar must scroll vertically only');
+        if (width === 390) { await page.screenshot({path:path.join(output,'manager-menu-mobile.png')}); await page.keyboard.press('Escape'); }
+      }
+      await page.setViewportSize({width:390,height:1000});
+    }
+    if (user === 'auxiliar' || user === 'trocas') {
+      if (await page.locator('.sidebar-nav .nav-link').count() !== 3) throw new Error('Incorrect restricted menu');
+    }
     for(const route of routes) {
       await page.goto('http://127.0.0.1:8012'+route);
       if (await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)) throw new Error(`Overflow ${route}`);
+    }
+    if (user === 'trocas') {
+      await page.goto('http://127.0.0.1:8012/validades-proximas');
+      await page.locator('#expiry-store').selectOption('2');
+      await page.locator('#expiry-sector').selectOption('2');
+      await page.locator('#expiry-search').fill('101');
+      await page.getByRole('button',{name:'Filtrar',exact:true}).click();
+      if (await page.locator('#expiry-store').inputValue() !== '2' || await page.locator('#expiry-sector').inputValue() !== '2') throw new Error('Filters not retained');
+      await page.screenshot({path:path.join(output,'trade-filters-mobile.png'),fullPage:true});
     }
   }
   if (errors.length) throw new Error(errors.join('\n'));

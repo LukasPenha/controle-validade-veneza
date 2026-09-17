@@ -122,7 +122,7 @@ def index():
         'gerente_trocas': 'routes.dashboard_gerente_trocas',
         'gerente': 'routes.produtos_para_rebaixa',
         'encarregado_setor': 'routes.listar_produtos_encarregado',
-        'auxiliar_gestao': 'routes.dashboard_auxiliar'
+        'auxiliar_gestao': 'inventory.upcoming'
     }
     dashboard_route = role_dashboard_map.get(current_user.role)
     if dashboard_route: return redirect(url_for(dashboard_route))
@@ -314,6 +314,8 @@ def dashboard_gerente_trocas():
 @routes.route('/produtos/vencidos')
 @login_required
 def pagina_produtos_vencidos():
+    if current_user.role == 'gerente_trocas':
+        return redirect(url_for('inventory.upcoming', situacao='vencidos'))
     if current_user.role not in ['gerente', 'gerente_geral', 'gerente_trocas']: return redirect(url_for('routes.index'))
     page = request.args.get('page', 1, type=int)
     data_limite = agora_brasil().date() - timedelta(days=30)

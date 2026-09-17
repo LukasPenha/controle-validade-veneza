@@ -8,7 +8,7 @@ from flask_login import current_user, login_required
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from . import db
-from .models import Produto, ExposureProof, AuditEvent, agora_brasil
+from .models import Produto, ExposureProof, AuditEvent, Loja, Setor, agora_brasil
 from .notifications import scope, sync_expiry_notifications, add_event
 
 inventory_bp = Blueprint('inventory', __name__)
@@ -34,6 +34,14 @@ def upcoming():
         abort(400)
     term = request.args.get('busca', '').strip()[:100]
     query = visible_lots().filter(Produto.quantidade > 0, Produto.arquivado.is_(False))
+    store = request.args.get('loja_id', 0, type=int)
+    sector = request.args.get('setor_id', 0, type=int)
+    if store < 0 or sector < 0:
+        abort(400)
+    if store:
+        query = query.filter(Produto.loja_id == store)
+    if sector:
+        query = query.filter(Produto.setor_id == sector)
     if term:
         query = query.filter(db.or_(Produto.nome_produto.ilike('%'+term+'%'),
                                    Produto.barcode == term, Produto.plu == term))
@@ -45,7 +53,10 @@ def upcoming():
     products = query.order_by(Produto.validade, Produto.nome_produto, Produto.id).paginate(
         page=request.args.get('page', 1, type=int), per_page=30, error_out=False)
     return render_template('inventory/upcoming.html', products=products, today=today,
-                           days=days, mode=mode, term=term, expired_count=expired_count)
+                           days=days, mode=mode, term=term, expired_count=expired_count,
+                           store=store, sector=sector,
+                           stores=Loja.query.order_by(Loja.nome).all() if current_user.role == 'gerente_trocas' else [],
+                           sectors=Setor.query.order_by(Setor.nome).all() if current_user.role == 'gerente_trocas' else [])
 
 
 def normalize_photo(upload):
@@ -116,7 +127,7 @@ def detail(item_id):
     eligible=not item.arquivado and item.quantidade>0 and item.status=='Em Rebaixa' and item.validade>=agora_brasil().date()
     return render_template('inventory/detail.html',item=item,proofs=proofs,proved=proved,events=events,
         can_upload=current_user.role=='encarregado_setor' and eligible,
-        can_close=current_user.role in ('gerente_geral','gerente','encarregado_setor') and not item.arquivado)
+        can_close=current_user.role in ('gerente','encarregado_setor') and not item.arquivado)
 
 
 @inventory_bp.post('/lotes/<int:item_id>/exposicao')

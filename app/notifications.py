@@ -21,6 +21,8 @@ def scope(query, model, user):
 
 
 def unread_query(user):
+    if user.role == 'gerente_trocas':
+        return Notificacao.query.filter(db.false())
     read_ids = db.session.query(NotificationRead.notificacao_id).filter_by(usuario_id=user.id)
     return scope(Notificacao.query, Notificacao, user).filter(
         Notificacao.resolved_at.is_(None), ~Notificacao.id.in_(read_ids))

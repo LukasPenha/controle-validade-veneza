@@ -129,7 +129,8 @@ def settings():
 def verify(token):
     record = find_token(token, 'verify')
     pref = db.session.get(EmailPreference, record.user_id) if record else None
-    valid = bool(pref and pref.address == record.address)
+    owner = db.session.get(Usuario, record.user_id) if record else None
+    valid = bool(pref and owner and owner.role != 'gerente_trocas' and pref.address == record.address)
     if valid and request.method == 'POST':
         if claim_token(record):
             pref.verified = True
