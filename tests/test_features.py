@@ -302,7 +302,7 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(Usuario.query.count(),0)
             self.assertEqual(EmailPreference.query.count(),0)
             self.assertEqual({s.nome for s in Setor.query.all()},
-                {'Padaria','Açougue','Mercearia','Frios','Bebidas','Higiene e limpeza'})
+                {'Padaria','Açougue','Mercearia','Frios'})
             self.assertNotEqual(app.test_cli_runner().invoke(args=['init-db']).exit_code,0)
             db.session.remove()
             db.engine.dispose()

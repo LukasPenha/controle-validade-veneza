@@ -33,6 +33,7 @@ with app.app_context():
     with raw.cursor() as cursor:
         cursor.execute(Path('database/atualizar_20260912.sql').read_text(encoding='utf-8'))
         cursor.execute(Path('database/atualizar_20260913.sql').read_text(encoding='utf-8'))
+        cursor.execute(Path('database/atualizar_20260916.sql').read_text(encoding='utf-8'))
     raw.commit()
     raw.close()
     item=Produto.query.one()
@@ -77,7 +78,7 @@ fresh=psycopg2.connect(url.set(database='veneza_fresh').render_as_string(hide_pa
 with fresh.cursor() as cursor:
     cursor.execute(Path('database/novo_banco.sql').read_text(encoding='utf-8'))
     cursor.execute('SELECT count(*) FROM setor')
-    assert cursor.fetchone()[0]==6
+    assert cursor.fetchone()[0]==4
 fresh.commit()
 fresh.close()
 print('PostgreSQL: atualização preservou produto, instalação vazia validada e foto concorrente não duplicou registro.')

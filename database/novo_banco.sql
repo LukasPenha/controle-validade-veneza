@@ -53,11 +53,11 @@ CREATE TABLE audit_event (
 	PRIMARY KEY (id)
 );
 
-CREATE INDEX ix_audit_event_timestamp ON audit_event (timestamp);
-
 CREATE INDEX ix_audit_event_produto_id ON audit_event (produto_id);
 
 CREATE INDEX ix_audit_event_loja_id ON audit_event (loja_id);
+
+CREATE INDEX ix_audit_event_timestamp ON audit_event (timestamp);
 
 CREATE TABLE login_limit (
 	key VARCHAR(64) NOT NULL,
@@ -119,15 +119,15 @@ CREATE TABLE produto (
 	FOREIGN KEY(criado_por_id) REFERENCES usuario (id) ON DELETE SET NULL
 );
 
-CREATE INDEX ix_produto_loja_setor_validade ON produto (loja_id, setor_id, validade);
-
 CREATE INDEX ix_produto_validade ON produto (validade);
 
 CREATE INDEX ix_produto_criado_por_id ON produto (criado_por_id);
 
-CREATE INDEX ix_produto_barcode ON produto (barcode);
-
 CREATE INDEX ix_produto_status_validade ON produto (status, validade);
+
+CREATE INDEX ix_produto_loja_setor_validade ON produto (loja_id, setor_id, validade);
+
+CREATE INDEX ix_produto_barcode ON produto (barcode);
 
 CREATE TABLE email_preference (
 	user_id INTEGER NOT NULL,
@@ -163,9 +163,9 @@ CREATE TABLE email_token (
 	FOREIGN KEY(user_id) REFERENCES usuario (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_email_token_expires_at ON email_token (expires_at);
-
 CREATE INDEX ix_token_user_purpose ON email_token (user_id, purpose, used);
+
+CREATE INDEX ix_email_token_expires_at ON email_token (expires_at);
 
 CREATE TABLE email_delivery (
 	id SERIAL NOT NULL,
@@ -213,9 +213,9 @@ CREATE TABLE notificacao (
 	FOREIGN KEY(setor_id) REFERENCES setor (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_notificacao_produto_id ON notificacao (produto_id);
-
 CREATE INDEX ix_notificacao_scope ON notificacao (loja_id, setor_id, resolved_at, timestamp);
+
+CREATE INDEX ix_notificacao_produto_id ON notificacao (produto_id);
 
 CREATE TABLE movimento (
 	id SERIAL NOT NULL,
@@ -270,12 +270,11 @@ CREATE TABLE notificacao_lida (
 );
 -- Execute no SQL Editor do banco atual. Não apaga nem altera os setores existentes.
 INSERT INTO public.setor (nome)
-VALUES ('Padaria'), ('Açougue'), ('Mercearia'), ('Frios'),
-       ('Bebidas'), ('Higiene e limpeza')
+VALUES ('Padaria'), ('Açougue'), ('Mercearia'), ('Frios')
 ON CONFLICT (nome) DO NOTHING;
 
 CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);
-INSERT INTO alembic_version VALUES ('20260913_exposicao');
+INSERT INTO alembic_version VALUES ('20260916_mercearia');
 DO $$ DECLARE role_name text; BEGIN
         FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN

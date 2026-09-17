@@ -32,7 +32,7 @@ def register_database_commands(app):
         admin = Usuario(username=email, role='gerente_geral')
         admin.set_password(password)
         db.session.add(admin)
-        for name in ('Padaria', 'Açougue', 'Frios', 'Mercearia', 'Bebidas', 'Higiene e limpeza'):
+        for name in ('Padaria', 'Açougue', 'Frios', 'Mercearia'):
             if not Setor.query.filter_by(nome=name).first():
                 db.session.add(Setor(nome=name))
         db.session.commit()

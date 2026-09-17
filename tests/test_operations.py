@@ -146,6 +146,40 @@ class BackupTests(unittest.TestCase):
 
 
 class UpgradeTests(unittest.TestCase):
+    def test_sector_merge_preserves_users_products_notifications_and_history(self):
+        from flask_migrate import upgrade
+        from app.models import Setor, Loja, Usuario, Notificacao
+        app=create_app({'TESTING':True,'SECRET_KEY':'merge-tests-'*4,'SQLALCHEMY_DATABASE_URI':'sqlite://','SCHEDULER_ENABLED':False})
+        with app.app_context():
+            upgrade(revision='20260913_exposicao')
+            store=Loja(nome='Teste')
+            db.session.add(store)
+            db.session.flush()
+            beverages=Setor.query.filter_by(nome='Bebidas').one()
+            hygiene=Setor.query.filter_by(nome='Higiene e limpeza').one()
+            user=Usuario(username='merge@example.test',password_hash='test',role='encarregado_setor',loja_id=store.id,setor_id=hygiene.id)
+            item=Produto(nome_produto='Suco',barcode='',source='manual',source_url='',quantidade=5,validade=utcnow().date(),loja_id=store.id,setor_id=beverages.id)
+            db.session.add_all([user,item])
+            db.session.flush()
+            notification=Notificacao(produto_id=item.id,loja_id=store.id,setor_id=beverages.id,event_key='merge-test',kind='created',severity='info',mensagem='Teste')
+            db.session.add(notification)
+            db.session.commit()
+            product_id=item.id
+            user_id=user.id
+            db.session.remove()
+            upgrade()
+            grocery=Setor.query.filter_by(nome='Mercearia').one()
+            self.assertEqual(Setor.query.count(),4)
+            self.assertEqual(db.session.get(Produto,product_id).setor_id,grocery.id)
+            self.assertEqual(db.session.get(Usuario,user_id).setor_id,grocery.id)
+            self.assertEqual(Notificacao.query.one().setor_id,grocery.id)
+            self.assertEqual(AuditEvent.query.filter_by(produto_id=product_id).first().setor_id,grocery.id)
+            self.assertEqual(db.session.get(Produto,product_id).quantidade,5)
+            upgrade()
+            self.assertEqual(Setor.query.count(),4)
+            db.session.remove()
+            db.engine.dispose()
+
     def test_upgrade_preserves_existing_lot(self):
         from flask_migrate import upgrade
         app=create_app({'TESTING':True,'SECRET_KEY':'upgrade-tests-'*4,'SQLALCHEMY_DATABASE_URI':'sqlite://','SCHEDULER_ENABLED':False})

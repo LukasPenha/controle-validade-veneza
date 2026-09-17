@@ -5,9 +5,11 @@
 1. Faça um backup antes de atualizar.
 2. Confira a versão com `SELECT version_num FROM alembic_version;` no SQL Editor do Supabase.
 3. Se estiver em `20260909_v2` ou `20260909_setores`, execute primeiro todo o arquivo `database/atualizar_20260912.sql`.
-4. Se estiver em `20260912_operacao`, execute todo o arquivo `database/atualizar_20260913.sql`. Se já estiver em `20260913_exposicao`, não reaplique.
+4. Se estiver em `20260912_operacao`, execute todo o arquivo `database/atualizar_20260913.sql`. Depois, em `20260913_exposicao`, execute `database/atualizar_20260916.sql`, que transfere Bebidas e Higiene e Limpeza para Mercearia. Se já estiver em `20260916_mercearia`, não reaplique.
 5. Alternativa no servidor: `flask --app run db upgrade` executa as migrações pendentes. Para banco totalmente vazio, use apenas `database/novo_banco.sql`.
 6. Publique a nova versão no Render depois de atualizar o banco.
+
+Para executar as migrações pendentes antes de iniciar no Render Free, use o Start Command `flask --app run db upgrade && python run.py`. Se uma migração falhar, o servidor não inicia com um esquema incompatível. Os setores padrão são Padaria, Açougue, Frios e Mercearia. A migração preserva usuários, produtos, fotos, notificações e histórico; produtos transferidos precisam de foto atualizada por mudança de setor.
 
 As atualizações preservam usuários e produtos. Campos financeiros e de lote antigos ficam apenas por compatibilidade; não são solicitados no cadastro. As fotos são privadas: os papéis públicos da API do Supabase não têm acesso à tabela. O aplicativo acessa pelo servidor.
 
