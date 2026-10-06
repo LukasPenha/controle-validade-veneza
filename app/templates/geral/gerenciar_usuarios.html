@@ -156,7 +156,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 function toggleFields(role, lojaField, setorField) {
     if (role === 'encarregado_setor') {
         lojaField.style.display = 'block';

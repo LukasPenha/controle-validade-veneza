@@ -77,7 +77,9 @@ def send_message(message):
 
 
 def deliver_pending(now=None):
+    """Envia a fila e devolve quantos saíram e o último erro, para o job registrar falhas."""
     now = now or utcnow()
+    result = {'sent': 0, 'failed': 0, 'error': None}
     trade_users = db.session.query(Usuario.id).filter_by(role='gerente_trocas')
     EmailDelivery.query.filter(EmailDelivery.user_id.in_(trade_users),
         EmailDelivery.kind.in_(['alert','verify']), EmailDelivery.status == 'pending').update(
@@ -92,7 +94,9 @@ def deliver_pending(now=None):
     config = current_app.config
     configured = all(config.get(key) for key in ('GMAIL_CLIENT_ID','GMAIL_CLIENT_SECRET','GMAIL_REFRESH_TOKEN')) if config['MAIL_TRANSPORT'] == 'gmail_api' else bool(config.get('MAIL_SERVER'))
     if not configured or not config.get('MAIL_DEFAULT_SENDER'):
-        return
+        if EmailDelivery.query.filter_by(status='pending').first():
+            result.update(failed=1, error='Envio de e-mail não configurado no servidor.')
+        return result
     rows = EmailDelivery.query.filter(EmailDelivery.status == 'pending', EmailDelivery.next_attempt_at <= now).order_by(
         (EmailDelivery.kind == 'alert').asc(), EmailDelivery.created_at).limit(30).all()
     for item in rows:
@@ -129,24 +133,34 @@ def deliver_pending(now=None):
             message.set_content(item.body)
             send_message(message)
             item.status, item.sent_at, item.last_error, item.body = 'sent', now, None, ''
+            result['sent'] += 1
         except (TimeoutError, smtplib.SMTPServerDisconnected):
             item.status, item.last_error, item.body = 'uncertain', 'Conexão interrompida; entrega não confirmada.', ''
-        except (OSError, smtplib.SMTPException, ValueError):
-            item.last_error = 'Serviço de e-mail indisponível ou configuração recusada.'
+            result.update(failed=result['failed'] + 1, error=item.last_error)
+        except (OSError, smtplib.SMTPException, ValueError) as error:
+            item.last_error = (str(error) or 'Serviço de e-mail indisponível ou configuração recusada.')[:160]
+            result.update(failed=result['failed'] + 1, error=item.last_error)
             item.status = 'failed' if item.attempts >= 3 else 'pending'
             item.next_attempt_at = now + timedelta(minutes=2 ** item.attempts)
             if item.status == 'failed':
                 item.body = ''
         db.session.commit()
+    return result
 
 
 def process_email_jobs(app):
     with app.app_context():
         queue_due_alerts()
-        deliver_pending()
+        result = deliver_pending()
         state = db.session.get(JobState, 'email')
         if not state:
-            state = JobState(name='email')
+            state = JobState(name='email', failures=0)
             db.session.add(state)
-        state.last_success_at = utcnow()
+        if result['failed'] and not result['sent']:
+            # Nada saiu nesta rodada: não conta como sucesso e acumula para o aviso ao gerente geral.
+            state.failures = (state.failures or 0) + 1
+            state.last_error = result['error'][:255]
+            app.logger.error('Falha no envio de e-mails (%s seguidas): %s', state.failures, state.last_error)
+        else:
+            state.failures, state.last_error, state.last_success_at = 0, None, utcnow()
         db.session.commit()

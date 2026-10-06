@@ -11,10 +11,14 @@ from .models import LoginLimit, utcnow
 def allow_attempt(username):
     now = utcnow()
     LoginLimit.query.filter(LoginLimit.expires_at <= now).delete(synchronize_session=False)
-    # Account limit follows the account across IP changes. Proxy IP limit is opt-in.
-    identities = [('account:' + username.strip().casefold()[:254], 10)]
+    # With the IP limit on, the attacker's own IP is blocked first (20) and the
+    # account limit (50) is high enough that a single attacker cannot lock out
+    # the real owner. Without it, the account limit stays strict (10).
+    account = 'account:' + username.strip().casefold()[:254]
     if current_app.config.get('LOGIN_IP_LIMIT_ENABLED'):
-        identities.append(('ip:' + (request.remote_addr or 'unknown'), 60))
+        identities = [('ip:' + (request.remote_addr or 'unknown'), 20), (account, 50)]
+    else:
+        identities = [(account, 10)]
     for identity, maximum in identities:
         key = hmac.new(current_app.secret_key.encode(), identity.encode(), hashlib.sha256).hexdigest()
         if not db.session.get(LoginLimit, key):

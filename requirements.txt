@@ -1,17 +1,42 @@
-Flask
-Flask-SQLAlchemy
-Flask-Login
-Flask-Bcrypt
-ReportLab
-requests
-Flask-Mail
-Flask-APScheduler
-gunicorn
-psycopg2-binary
-python-dotenv
-waitress
-Flask-Migrate
-pytz
-tzdata
-Flask-WTF>=1.2.2,<2
-Pillow>=11.3,<13
+# Versões fixadas (inclusive as dependências indiretas): os testes passaram
+# com este conjunto em Python 3.13. Para atualizar, troque a versão, rode os
+# testes e só então faça o deploy.
+
+# Usadas diretamente pelo app
+Flask==3.1.3
+Flask-SQLAlchemy==3.1.1
+Flask-Login==0.6.3
+Flask-Bcrypt==1.0.1
+Flask-WTF==1.3.0
+Flask-APScheduler==1.13.1
+Flask-Migrate==4.1.0
+ReportLab==5.0.1
+requests==2.34.2
+gunicorn==26.2.0
+psycopg2-binary==2.9.13
+python-dotenv==1.2.4
+waitress==3.0.2
+tzdata==2026.5
+Pillow==12.3.0
+
+# Dependências indiretas
+alembic==1.20.0
+APScheduler==3.11.3
+bcrypt==5.0.0
+blinker==1.9.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
+click==8.5.0
+idna==3.20
+itsdangerous==2.2.0
+Jinja2==3.1.6
+Mako==1.4.3
+MarkupSafe==3.0.4
+python-dateutil==2.9.0.post0
+six==1.17.0
+SQLAlchemy==2.1.3
+typing_extensions==4.16.0
+tzlocal==5.4.4
+urllib3==2.8.0
+Werkzeug==3.1.9
+WTForms==3.2.2

@@ -1,0 +1,22 @@
+name: Manter agendamentos ativos
+# Em repositório público, o GitHub desliga os workflows agendados após 60 dias sem
+# commits. Reativar pela API toda semana zera essa contagem, sem criar commits.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 5 * * 1'
+permissions:
+  actions: write
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reativar workflows agendados
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for workflow in notifications.yml backup.yml manter-agendamentos.yml; do
+            gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            echo "${workflow}: ativo"
+          done

@@ -88,3 +88,43 @@ class SecurityTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class SessionTimeoutTests(unittest.TestCase):
+    def setUp(self):
+        import test_features as fixtures
+        fixtures.FeatureTests.setUp(self)
+
+    def tearDown(self):
+        import test_features as fixtures
+        fixtures.FeatureTests.tearDown(self)
+
+    def login(self):
+        return self.client.post('/login', data={'username': self.user.username, 'password': 'Original-12345'})
+
+    def shift(self, key, seconds):
+        with self.client.session_transaction() as sess:
+            sess[key] -= seconds
+
+    def test_idle_session_expires(self):
+        self.login()
+        self.assertEqual(self.client.get('/perfil').status_code, 200)
+        self.shift('last_seen', self.app.config['SESSION_IDLE_MINUTES'] * 60 + 1)
+        response = self.client.get('/perfil')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login', response.location)
+        self.assertEqual(self.client.get('/perfil').status_code, 302)
+
+    def test_active_session_has_absolute_limit(self):
+        self.login()
+        with self.client.session_transaction() as sess:
+            self.assertTrue(sess.permanent)
+        self.shift('login_at', int(self.app.config['PERMANENT_SESSION_LIFETIME'].total_seconds()) + 1)
+        self.assertEqual(self.client.get('/api/produtos?term=arroz').status_code, 401)
+
+    def test_unknown_user_still_runs_bcrypt(self):
+        from unittest.mock import patch
+        from app import bcrypt
+        with patch.object(bcrypt, 'check_password_hash', wraps=bcrypt.check_password_hash) as check:
+            self.client.post('/login', data={'username': 'ninguem@example.test', 'password': 'Qualquer-12345'})
+        self.assertEqual(check.call_count, 1)

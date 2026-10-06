@@ -37,6 +37,13 @@ SUPPORT = {
     'auxiliar_gestao': {'lookup.search','lots.create','notifications.mark_read',
                        'notifications.mark_all_read','notifications.refresh'},
     'gerente_trocas': {'routes.gerar_relatorio_pdf'},
+    'gerente': {'routes.gerar_relatorio_gerente_pdf','routes.alterar_status','inventory.detail',
+                'inventory.photo','inventory.close','lots.create','lookup.search','profile.verify',
+                'notifications.mark_read','notifications.mark_all_read','notifications.refresh'},
+    'encarregado_setor': {'routes.gerar_relatorio_encarregado_pdf','routes.editar_produto','inventory.detail',
+                          'inventory.photo','inventory.add_proof','inventory.close','lots.create',
+                          'lookup.search','profile.verify','notifications.mark_read',
+                          'notifications.mark_all_read','notifications.refresh'},
 }
 
 
@@ -48,8 +55,7 @@ def can_access(endpoint):
         return False
     if endpoint == 'static' or endpoint == 'routes.index' or endpoint.startswith('auth.'):
         return True
-    if role not in SUPPORT:  # Existing manager/sector checks remain in their routes.
-        return True
+    # Nega por padrão: rota nova só abre para um cargo quando entrar no menu ou em SUPPORT.
     return endpoint in SUPPORT[role] or endpoint in {NAV[key][0] for key in MENUS[role]}
 
 

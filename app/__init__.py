@@ -1,5 +1,7 @@
 import os
-from flask import Flask, request, jsonify, redirect, url_for
+import secrets
+from datetime import timedelta
+from flask import Flask, g, request, jsonify, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, current_user
 from flask_bcrypt import Bcrypt
@@ -7,6 +9,7 @@ from flask_apscheduler import APScheduler
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from flask_wtf.csrf import CSRFProtect
+from werkzeug.middleware.proxy_fix import ProxyFix
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import event
 from sqlalchemy.engine import Engine
@@ -74,7 +77,10 @@ def create_app(config=None):
         GMAIL_CLIENT_ID=os.getenv('GMAIL_CLIENT_ID', ''),
         GMAIL_CLIENT_SECRET=os.getenv('GMAIL_CLIENT_SECRET', ''),
         GMAIL_REFRESH_TOKEN=os.getenv('GMAIL_REFRESH_TOKEN', ''),
+        PERMANENT_SESSION_LIFETIME=timedelta(hours=int(os.getenv('SESSION_LIFETIME_HOURS', '12'))),
+        SESSION_IDLE_MINUTES=int(os.getenv('SESSION_IDLE_MINUTES', '120')),
         LOGIN_IP_LIMIT_ENABLED=os.getenv('LOGIN_IP_LIMIT_ENABLED', 'false').lower() == 'true',
+        TRUSTED_PROXIES=int(os.getenv('TRUSTED_PROXIES', '0')),
         PRODUCT_API_USER_AGENT=os.getenv('PRODUCT_API_USER_AGENT', 'VenezaValidade/2.0 (https://controle-validade-veneza-1.onrender.com)'),
     )
     if config:
@@ -82,6 +88,15 @@ def create_app(config=None):
     secret = app.config.get('SECRET_KEY')
     if not secret or len(secret) < 32 or secret == 'chave-padrao-insegura':
         raise RuntimeError('Configure SECRET_KEY com uma chave aleatória de pelo menos 32 caracteres.')
+
+    # Atrás do proxy do Render, REMOTE_ADDR é o IP do proxy. Com TRUSTED_PROXIES=1,
+    # o IP do visitante vem do X-Forwarded-For escrito pelo próprio proxy.
+    if app.config['TRUSTED_PROXIES'] > 0:
+        hops = app.config['TRUSTED_PROXIES']
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops, x_proto=hops)
+    base_url = app.config.get('PUBLIC_BASE_URL', '')
+    if base_url and not base_url.startswith('https://'):
+        app.logger.warning('PUBLIC_BASE_URL não usa HTTPS; os links de e-mail não serão enviados.')
 
     csrf.init_app(app)
     @app.errorhandler(413)
@@ -112,6 +127,8 @@ def create_app(config=None):
     app.register_blueprint(notifications_bp)
     from .database import register_database_commands
     register_database_commands(app)
+    from .auth import register_session_timeout
+    register_session_timeout(app)
     from .access import register_access
     register_access(app)
 
@@ -136,8 +153,25 @@ def create_app(config=None):
                           trigger='interval', minutes=1, max_instances=1, coalesce=True)
         scheduler.start()
 
+    @app.before_request
+    def make_csp_nonce():
+        g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.context_processor
+    def inject_csp_nonce():
+        return {'csp_nonce': g.get('csp_nonce', '')}
+
     @app.after_request
     def security_headers(response):
+        if response.mimetype == 'text/html' and g.get('csp_nonce'):
+            response.headers['Content-Security-Policy'] = (
+                "default-src 'self'; "
+                f"script-src 'self' 'nonce-{g.csp_nonce}' https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "font-src 'self' https://cdn.jsdelivr.net; img-src 'self' data: blob:; media-src 'self' blob:; "
+                "connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'")
+        if request.is_secure:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
@@ -146,6 +180,20 @@ def create_app(config=None):
         if request.endpoint in ('auth.reset_password', 'profile.verify'):
             response.headers['Referrer-Policy'] = 'no-referrer'
         return response
+
+    @app.context_processor
+    def inject_email_job_alert():
+        # Avisa o gerente geral quando o envio de e-mails falha 3 vezes seguidas.
+        if not current_user.is_authenticated or current_user.role != 'gerente_geral':
+            return {}
+        from .models import JobState
+        try:
+            state = db.session.get(JobState, 'email')
+            failing = bool(state and state.failures >= 3)
+        except SQLAlchemyError:
+            db.session.rollback()
+            return {}
+        return {'email_job_alert': state if failing else None}
 
     # Injetor de notificações
     @app.context_processor

@@ -33,9 +33,9 @@
                             <td>{{ dias_restantes }}</td>
                             <td>{{ produto.criado_por.nome_display }}</td>
                             <td>
-                                <form method="POST" action="{{ url_for('routes.alterar_status', produto_id=produto.id) }}" onsubmit="return confirm('Tem certeza que deseja alterar o status deste item?');">
+                                <form method="POST" action="{{ url_for('routes.alterar_status', produto_id=produto.id) }}" class="js-status-form" data-confirm="Tem certeza que deseja alterar o status deste item?">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+                                    <select name="status" class="form-select form-select-sm">
                                         <option value="Para Rebaixa" selected>Para Rebaixa</option>
                                         <option value="Em Rebaixa">Em Rebaixa</option>
                                     </select>

@@ -63,6 +63,20 @@ END IF; END $$;
     sector_sql='-- UNIÃO DOS SETORES EM MERCEARIA, PRESERVANDO OS REGISTROS.\nBEGIN;\nSET LOCAL search_path TO public;\n'+sector_guard+sector_output.getvalue()+"UPDATE alembic_version SET version_num='20260916_mercearia';\nCOMMIT;\n"
     (root/'database/atualizar_20260916.sql').write_text(sector_sql,encoding='utf-8')
     sql=sql.replace("VALUES ('20260913_exposicao')", "VALUES ('20260916_mercearia')")
+    security_output=io.StringIO()
+    security_context=MigrationContext.configure(dialect_name='postgresql',dialect_opts={'paramstyle':'named'},opts={'as_sql':True,'output_buffer':security_output})
+    with Operations.context(security_context):
+        spec=importlib.util.spec_from_file_location('upgrade_security',root/'migrations/versions/20261006_seguranca.py')
+        module=importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        module.upgrade()
+    security_ddl=security_output.getvalue()
+    security_guard=guard.replace("version_num IN ('20260909_v2','20260909_setores')", "version_num='20260916_mercearia'")
+    security_sql='-- FALHAS DOS JOBS, PERMISSÕES PADRÃO E RLS. Execute após atualizar_20260916.sql.\nBEGIN;\nSET LOCAL search_path TO public;\n'+security_guard+security_ddl+"UPDATE alembic_version SET version_num='20261006_seguranca';\nCOMMIT;\n"
+    (root/'database/atualizar_20261006.sql').write_text('\n'.join(line.rstrip() for line in security_sql.splitlines())+'\n',encoding='utf-8')
+    # Banco novo: as colunas já vêm do create_all; aplica só as permissões e o RLS.
+    sql=sql.replace("VALUES ('20260916_mercearia')", "VALUES ('20261006_seguranca')")
+    sql=sql.replace('\nCOMMIT;', '\n'+security_ddl[security_ddl.index('DO $$'):]+'\nCOMMIT;')
     (root/'database/novo_banco.sql').write_text('\n'.join(line.rstrip() for line in sql.splitlines())+'\n',encoding='utf-8')
     db.engine.dispose()
 print('SQL de instalação e atualização gerados; migrações existentes preservadas.')

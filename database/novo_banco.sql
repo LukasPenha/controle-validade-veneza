@@ -23,6 +23,8 @@ CREATE TABLE setor (
 CREATE TABLE job_state (
 	name VARCHAR(80) NOT NULL,
 	last_success_at TIMESTAMP WITH TIME ZONE,
+	last_error VARCHAR(255),
+	failures INTEGER DEFAULT '0' NOT NULL,
 	PRIMARY KEY (name)
 );
 
@@ -85,9 +87,9 @@ CREATE TABLE usuario (
 
 CREATE INDEX ix_usuario_loja_id ON usuario (loja_id);
 
-CREATE INDEX ix_usuario_setor_id ON usuario (setor_id);
-
 CREATE UNIQUE INDEX uq_usuario_username_lower ON usuario (lower(username));
+
+CREATE INDEX ix_usuario_setor_id ON usuario (setor_id);
 
 CREATE TABLE produto (
 	id SERIAL NOT NULL,
@@ -119,15 +121,15 @@ CREATE TABLE produto (
 	FOREIGN KEY(criado_por_id) REFERENCES usuario (id) ON DELETE SET NULL
 );
 
+CREATE INDEX ix_produto_barcode ON produto (barcode);
+
+CREATE INDEX ix_produto_status_validade ON produto (status, validade);
+
 CREATE INDEX ix_produto_validade ON produto (validade);
 
 CREATE INDEX ix_produto_criado_por_id ON produto (criado_por_id);
 
-CREATE INDEX ix_produto_status_validade ON produto (status, validade);
-
 CREATE INDEX ix_produto_loja_setor_validade ON produto (loja_id, setor_id, validade);
-
-CREATE INDEX ix_produto_barcode ON produto (barcode);
 
 CREATE TABLE email_preference (
 	user_id INTEGER NOT NULL,
@@ -163,9 +165,9 @@ CREATE TABLE email_token (
 	FOREIGN KEY(user_id) REFERENCES usuario (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_token_user_purpose ON email_token (user_id, purpose, used);
-
 CREATE INDEX ix_email_token_expires_at ON email_token (expires_at);
+
+CREATE INDEX ix_token_user_purpose ON email_token (user_id, purpose, used);
 
 CREATE TABLE email_delivery (
 	id SERIAL NOT NULL,
@@ -213,9 +215,9 @@ CREATE TABLE notificacao (
 	FOREIGN KEY(setor_id) REFERENCES setor (id) ON DELETE CASCADE
 );
 
-CREATE INDEX ix_notificacao_scope ON notificacao (loja_id, setor_id, resolved_at, timestamp);
-
 CREATE INDEX ix_notificacao_produto_id ON notificacao (produto_id);
+
+CREATE INDEX ix_notificacao_scope ON notificacao (loja_id, setor_id, resolved_at, timestamp);
 
 CREATE TABLE movimento (
 	id SERIAL NOT NULL,
@@ -274,7 +276,7 @@ VALUES ('Padaria'), ('Açougue'), ('Mercearia'), ('Frios')
 ON CONFLICT (nome) DO NOTHING;
 
 CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY);
-INSERT INTO alembic_version VALUES ('20260916_mercearia');
+INSERT INTO alembic_version VALUES ('20261006_seguranca');
 DO $$ DECLARE role_name text; BEGIN
         FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
@@ -292,6 +294,20 @@ DO $$ DECLARE role_name text; BEGIN
           IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
             EXECUTE format('REVOKE ALL ON TABLE public.exposure_proof FROM %I', role_name);
           END IF;
+        END LOOP; END $$;
+
+
+DO $$ DECLARE role_name text; table_name text; BEGIN
+        FOREACH role_name IN ARRAY ARRAY['anon','authenticated'] LOOP
+          IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname=role_name) THEN
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM %I', role_name);
+            EXECUTE format('ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM %I', role_name);
+            EXECUTE format('REVOKE ALL ON ALL TABLES IN SCHEMA public FROM %I', role_name);
+            EXECUTE format('REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM %I', role_name);
+          END IF;
+        END LOOP;
+        FOR table_name IN SELECT tablename FROM pg_tables WHERE schemaname='public' AND tableowner=current_user LOOP
+          EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', table_name);
         END LOOP; END $$;
 
 

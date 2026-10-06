@@ -9,7 +9,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
 from . import db
 from .models import Produto, ExposureProof, AuditEvent, Loja, Setor, agora_brasil
-from .notifications import scope, sync_expiry_notifications, add_event
+from .notifications import scope, sync_product_notifications, add_event
 
 inventory_bp = Blueprint('inventory', __name__)
 MAX_UPLOAD = 6 * 1024 * 1024
@@ -195,7 +195,7 @@ def close(item_id):
         db.session.add(AuditEvent(produto_id=item.id,loja_id=item.loja_id,setor_id=item.setor_id,actor=current_user.username,
             action='encerramento',changes={'motivo':{'antes':None,'depois':reason}}))
         db.session.commit()
-        sync_expiry_notifications(user=current_user)
+        sync_product_notifications(item)
         flash('Acompanhamento encerrado. Fotos e histórico foram preservados.','success')
     return redirect(url_for('inventory.detail',item_id=item.id))
 

@@ -22,6 +22,17 @@ document.addEventListener('DOMContentLoaded', () => {
             bootstrap.Collapse.getOrCreateInstance(sidebar).hide();
         }
     });
+    // Troca de status: confirma antes de enviar e desfaz a escolha se a pessoa cancelar.
+    document.querySelectorAll('form.js-status-form select').forEach(select => {
+        const original = select.value;
+        select.addEventListener('change', () => {
+            if (confirm(select.form.dataset.confirm)) {
+                select.form.submit();
+            } else {
+                select.value = original;
+            }
+        });
+    });
     const frequency = document.getElementById('frequency');
     const weekday = document.getElementById('weekday');
     if (frequency && weekday) {

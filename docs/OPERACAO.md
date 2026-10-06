@@ -5,11 +5,13 @@
 1. Faça um backup antes de atualizar.
 2. Confira a versão com `SELECT version_num FROM alembic_version;` no SQL Editor do Supabase.
 3. Se estiver em `20260909_v2` ou `20260909_setores`, execute primeiro todo o arquivo `database/atualizar_20260912.sql`.
-4. Se estiver em `20260912_operacao`, execute todo o arquivo `database/atualizar_20260913.sql`. Depois, em `20260913_exposicao`, execute `database/atualizar_20260916.sql`, que transfere Bebidas e Higiene e Limpeza para Mercearia. Se já estiver em `20260916_mercearia`, não reaplique.
+4. Se estiver em `20260912_operacao`, execute todo o arquivo `database/atualizar_20260913.sql`. Depois, em `20260913_exposicao`, execute `database/atualizar_20260916.sql`, que transfere Bebidas e Higiene e Limpeza para Mercearia. Em `20260916_mercearia`, execute `database/atualizar_20261006.sql` (registro de falhas dos jobs, permissões padrão e RLS). Se já estiver em `20261006_seguranca`, não reaplique.
 5. Alternativa no servidor: `flask --app run db upgrade` executa as migrações pendentes. Para banco totalmente vazio, use apenas `database/novo_banco.sql`.
 6. Publique a nova versão no Render depois de atualizar o banco.
 
 Para executar as migrações pendentes antes de iniciar no Render Free, use o Start Command `flask --app run db upgrade && python run.py`. Se uma migração falhar, o servidor não inicia com um esquema incompatível. Os setores padrão são Padaria, Açougue, Frios e Mercearia. A migração preserva usuários, produtos, fotos, notificações e histórico; produtos transferidos precisam de foto atualizada por mudança de setor.
+
+**Atualização `20261006_seguranca`:** liga o RLS (Row Level Security) em todas as tabelas do schema `public` que pertencem ao usuário do servidor e retira dos papéis `anon` e `authenticated` o acesso às tabelas atuais e futuras. O sistema não usa a Data API do Supabase: tudo passa pelo servidor Flask, que é dono das tabelas e por isso não é afetado pelo RLS. O backup (`pg_dump`) usa o mesmo usuário e também não é afetado. Se o Start Command do Render já roda `flask --app run db upgrade`, a atualização é aplicada sozinha no próximo deploy.
 
 As atualizações preservam usuários e produtos. Campos financeiros e de lote antigos ficam apenas por compatibilidade; não são solicitados no cadastro. As fotos são privadas: os papéis públicos da API do Supabase não têm acesso à tabela. O aplicativo acessa pelo servidor.
 
@@ -27,7 +29,18 @@ O menu **Validades próximas** lista os produtos ativos em ordem crescente de di
 - Para encerrar o acompanhamento, informe um motivo. O encarregado precisa ter uma foto atual; o gerente pode encerrar exceções com justificativa. Encerrados deixam os alertas e permanecem consultáveis.
 - A data exibida é a de envio. Uma foto serve como evidência para conferência humana, sem garantir automaticamente a exposição ou sua duração.
 
-As imagens aceitas são JPEG, PNG e WebP até 6 MB e 25 megapixels; são convertidas para JPEG de até 1280 pixels e 512 KiB, sem metadados EXIF. Ficam no banco e entram no backup criptografado quando este estiver ativado. Acompanhe o consumo de espaço do banco; o histórico de fotos cresce com o uso. Não há novas credenciais de armazenamento para configurar.
+As imagens aceitas são JPEG, PNG e WebP até 6 MB e 25 megapixels; são convertidas para JPEG de até 1280 pixels e 512 KiB, sem metadados EXIF. Ficam no banco e entram no backup criptografado quando este estiver ativado. Acompanhe o consumo de espaço do banco (Supabase → Settings → Usage); o histórico de fotos cresce com o uso. Não há novas credenciais de armazenamento para configurar.
+
+Para liberar espaço, apague as fotos de produtos **já encerrados** enviadas há muito tempo. O comando primeiro só mostra quantas seriam apagadas; nada é removido sem `--confirmar`. Faça um backup antes:
+
+```text
+flask --app run purge-photos --dias 180              # só conta
+flask --app run purge-photos --dias 180 --confirmar  # apaga
+```
+
+## Retenção automática
+
+Uma vez por dia, o job de notificações encerra avisos informativos (produto registrado, status alterado, foto enviada) com mais de 30 dias e apaga notificações encerradas há mais de 180 dias, e-mails já processados com mais de 90 dias e links de e-mail vencidos há mais de 30 dias. O histórico de auditoria dos produtos **não** é apagado. Para rodar manualmente: `flask --app run purge-old-data`.
 
 ## Gmail por HTTPS — configuração inicial
 
@@ -52,7 +65,9 @@ Esta integração envia pelo seu Gmail usando a API oficial em HTTPS; não usa a
 
 Não coloque esses valores no Git ou em conversas. `MAIL_PASSWORD` e senha de app não são usados no modo `gmail_api`. Se optar por SMTP em outro plano, selecione explicitamente `MAIL_TRANSPORT=smtp`.
 
-**Para sair do teste:** o Google informa que tokens de aplicativos externos em modo Testing podem expirar em 7 dias para esse escopo. Planeje a configuração de produção e eventuais requisitos de verificação com sua conta antes de depender do envio. Tokens também podem ser revogados. [Documentação OAuth](https://developers.google.com/identity/protocols/oauth2). O Playground usando credenciais próprias é para obter/testar a autorização inicial; não foi realizada autorização em seu nome.
+**Aviso de falha:** se o envio falhar em 3 execuções seguidas sem nenhum e-mail sair, o gerente geral passa a ver um aviso vermelho no topo das páginas, com o último erro. A causa mais comum é o Refresh Token expirado no modo Testing. Gere um novo token (passos 4 e 5) e atualize `GMAIL_REFRESH_TOKEN` no Render e nos Secrets do GitHub. O aviso some na primeira execução com envio bem-sucedido.
+
+**Para sair do teste:** no Google Auth Platform, em **Público-alvo**, clique em **Publicar aplicativo** (status *Em produção*). Assim o Refresh Token deixa de expirar em 7 dias. O Google informa que tokens de aplicativos externos em modo Testing podem expirar em 7 dias para esse escopo. Planeje a configuração de produção e eventuais requisitos de verificação com sua conta antes de depender do envio. Tokens também podem ser revogados. [Documentação OAuth](https://developers.google.com/identity/protocols/oauth2). O Playground usando credenciais próprias é para obter/testar a autorização inicial; não foi realizada autorização em seu nome.
 
 ## Agendamentos no GitHub
 
@@ -65,6 +80,8 @@ Crie os **Secrets** `DATABASE_URL` (conexão externa do banco), `SECRET_KEY` (a 
 Crie as **Variables** `PUBLIC_BASE_URL`, `MAIL_DEFAULT_SENDER` e, depois de concluir a configuração, `RUN_MAIL_JOBS=true`.
 
 Na aba Actions, execute **Processar notificações → Run workflow** uma vez. Ele processa validades e e-mails pendentes. Depois use seu perfil para solicitar a confirmação do e-mail, confirme o link e programe o resumo.
+
+O workflow **Manter agendamentos ativos** roda toda segunda-feira e reativa os workflows agendados pela API. Em repositório público, o GitHub desliga agendamentos após 60 dias sem commits; essa reativação semanal evita que os alertas e o backup parem sozinhos. Ele não cria commits. Em repositório público, os minutos do GitHub Actions são gratuitos.
 
 O workflow tenta executar a cada 5 minutos, nos minutos 2, 7, 12 etc. Não depende de o site Render estar acordado. Horário configurado no perfil é o início da janela de envio; às 9h o processamento tende a ocorrer a partir de 9h02. O GitHub pode atrasar ou não executar agendamentos sob carga e desativa agendamentos em repositórios públicos após inatividade prolongada. Não promete horário exato nem disponibilidade contínua. Consulte [eventos agendados](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows) e acompanhe limites de minutos da sua conta. Para operação com SLA, use um worker sempre ativo com execução a cada minuto.
 
@@ -97,7 +114,18 @@ Configure a conexão de restauração por variáveis de ambiente PostgreSQL; nã
 
 ## Proteção de login
 
-O banco compartilha um limite de 10 tentativas por conta por janela de 15 minutos, inclusive entre processos. A limitação responde de forma igual para contas existentes e inexistentes; e-mails são normalizados. A chave armazenada para a limitação é derivada com HMAC. O limite adicional por IP é opcional (`LOGIN_IP_LIMIT_ENABLED=true`) e só deve ser ligado quando `REMOTE_ADDR` representar corretamente o cliente: não confiamos em cabeçalhos encaminhados enviados pelo visitante.
+O banco guarda os limites de login por janela de 15 minutos, inclusive entre processos. A limitação responde de forma igual para contas existentes e inexistentes; e-mails são normalizados. A chave armazenada é derivada com HMAC.
+
+- **Sem limite por IP** (`LOGIN_IP_LIMIT_ENABLED=false`): 10 tentativas por conta. Quem souber o e-mail consegue trancar a conta do dono.
+- **Com limite por IP** (`LOGIN_IP_LIMIT_ENABLED=true`): 20 tentativas por IP e 50 por conta. O atacante é barrado no próprio IP antes de trancar a conta de outra pessoa.
+
+No Render, configure `TRUSTED_PROXIES=1` e `LOGIN_IP_LIMIT_ENABLED=true`. O `TRUSTED_PROXIES` faz o app ler o IP real do visitante no `X-Forwarded-For` escrito pelo proxy do Render. Não use um número maior que a quantidade real de proxies: o visitante poderia forjar o próprio IP.
+
+## Sessão e acesso
+
+O login dura no máximo `SESSION_LIFETIME_HOURS` (padrão 12 horas) e cai após `SESSION_IDLE_MINUTES` sem uso (padrão 120 minutos). Ajuste no Render se a loja precisar de outro tempo.
+
+Cada cargo só acessa as rotas listadas para ele em `app/access.py` (menu + `SUPPORT`). Uma rota nova fica bloqueada (403) para todos até ser incluída ali.
 
 ## Testes
 

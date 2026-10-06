@@ -5,7 +5,7 @@ from flask_login import current_user, login_required
 from . import db
 from .models import Produto, Setor, Loja
 from .product_lookup import selected_product
-from .notifications import sync_expiry_notifications, add_event
+from .notifications import sync_product_notifications, add_event
 
 lots_bp = Blueprint('lots', __name__)
 EDITORS = ('gerente_geral', 'gerente', 'encarregado_setor', 'auxiliar_gestao')
@@ -56,7 +56,7 @@ def create():
             db.session.flush()
             add_event(item, f'created:{item.id}', 'created', 'info', f'{item.nome_produto}: produto registrado com {quantity} unidades.')
             db.session.commit()
-            sync_expiry_notifications(user=current_user)
+            sync_product_notifications(item)
             flash('Produto registrado e notificações atualizadas.', 'success')
             return redirect(url_for('routes.datas_curtas'))
         except (ValueError, TypeError):

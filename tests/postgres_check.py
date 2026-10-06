@@ -34,10 +34,21 @@ with app.app_context():
         cursor.execute(Path('database/atualizar_20260912.sql').read_text(encoding='utf-8'))
         cursor.execute(Path('database/atualizar_20260913.sql').read_text(encoding='utf-8'))
         cursor.execute(Path('database/atualizar_20260916.sql').read_text(encoding='utf-8'))
+        cursor.execute(Path('database/atualizar_20261006.sql').read_text(encoding='utf-8'))
     raw.commit()
     raw.close()
     item=Produto.query.one()
     assert item.quantidade==10 and item.custo_unitario is None
+    # A20261006: RLS ligado, papéis da Data API sem acesso e esquema igual aos models.
+    assert db.session.execute(text("SELECT bool_and(relrowsecurity) FROM pg_class c JOIN pg_tables t ON t.tablename=c.relname AND t.schemaname='public' WHERE c.relkind='r'")).scalar()
+    assert not db.session.execute(text("SELECT has_table_privilege('anon','public.produto','SELECT')")).scalar()
+    db.session.execute(text('CREATE TABLE tabela_futura (id int)'))
+    assert not db.session.execute(text("SELECT has_table_privilege('anon','public.tabela_futura','SELECT')")).scalar()
+    db.session.execute(text('DROP TABLE tabela_futura'))
+    from alembic.autogenerate import compare_metadata
+    from alembic.migration import MigrationContext
+    differences=compare_metadata(MigrationContext.configure(db.session.connection()),db.metadata)
+    assert not differences, differences
     user=Usuario(username='ci@example.test',role='encarregado_setor',loja_id=1,setor_id=1)
     user.set_password('Test-only-password')
     item.status='Em Rebaixa'

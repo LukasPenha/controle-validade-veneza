@@ -40,8 +40,8 @@ def expiry_event(product, today):
     return kind, severity, f'{product.nome_produto}: {text}. {product.quantidade} unidades · validade {product.validade:%d/%m/%Y}.'
 
 
-def add_event(product, key, kind, severity, message):
-    if Notificacao.query.filter_by(event_key=key).first():
+def add_event(product, key, kind, severity, message, checked=False):
+    if not checked and Notificacao.query.filter_by(event_key=key).first():
         return
     try:
         with db.session.begin_nested():
@@ -53,32 +53,55 @@ def add_event(product, key, kind, severity, message):
         pass
 
 
-def sync_expiry_notifications(now=None, user=None):
-    now = now or agora_brasil()
+EXPIRY_KINDS = ('expired', 'due_today', 'approaching')
+
+
+def _sync(active, products, now):
+    """Resolve alertas vencidos e cria/reativa os atuais com uma consulta por lote de 500 chaves."""
     today = now.date()
-    active = Notificacao.query.filter(Notificacao.resolved_at.is_(None),
-                                     Notificacao.kind.in_(['expired', 'due_today', 'approaching']))
-    if user:
-        active = scope(active, Notificacao, user)
-    for item in active.all():
+    for item in active:
         event = expiry_event(item.produto, today)
         expected = f'expiry:{item.produto_id}:{item.produto.validade}:{event[0]}' if event else None
         if item.event_key != expected:
             item.resolved_at = now
         elif event:
             item.mensagem = event[2]
+    wanted = {}
+    for product in products:
+        event = expiry_event(product, today)
+        if event:
+            wanted[f'expiry:{product.id}:{product.validade}:{event[0]}'] = (product, event)
+    keys = list(wanted)
+    existing = {}
+    for start in range(0, len(keys), 500):
+        for row in Notificacao.query.filter(Notificacao.event_key.in_(keys[start:start + 500])):
+            existing[row.event_key] = row
+    for key, (product, (kind, severity, message)) in wanted.items():
+        if key in existing:
+            existing[key].resolved_at = None
+            existing[key].mensagem = message
+        else:
+            add_event(product, key, kind, severity, message, checked=True)
+
+
+def sync_product_notifications(product, now=None):
+    """Atualiza só o produto alterado; a varredura completa fica com o job agendado."""
+    active = Notificacao.query.filter(Notificacao.resolved_at.is_(None), Notificacao.kind.in_(EXPIRY_KINDS),
+                                      Notificacao.produto_id == product.id).all()
+    _sync(active, [product], now or agora_brasil())
+    db.session.commit()
+
+
+def sync_expiry_notifications(now=None, user=None):
+    now = now or agora_brasil()
+    today = now.date()
+    active = Notificacao.query.filter(Notificacao.resolved_at.is_(None), Notificacao.kind.in_(EXPIRY_KINDS))
+    if user:
+        active = scope(active, Notificacao, user)
     query = Produto.query.filter(Produto.validade <= today + timedelta(days=7), Produto.quantidade > 0, Produto.arquivado.is_(False))
     if user:
         query = scope(query, Produto, user)
-    for product in query.yield_per(200):
-        kind, severity, message = expiry_event(product, today)
-        key = f'expiry:{product.id}:{product.validade}:{kind}'
-        existing = Notificacao.query.filter_by(event_key=key).first()
-        if existing:
-            existing.resolved_at = None
-            existing.mensagem = message
-        else:
-            add_event(product, key, kind, severity, message)
+    _sync(active.all(), query.all(), now)
     if not user:
         ExternalLookupCache.query.filter(ExternalLookupCache.expires_at <= utcnow()).delete()
         job = db.session.get(JobState, 'expiry')

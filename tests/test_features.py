@@ -152,7 +152,7 @@ class FeatureTests(unittest.TestCase):
 
     def test_dashboard_is_general_manager_only(self):
         self.login()
-        self.assertEqual(self.client.get('/gerente-geral/dashboard').status_code,302)
+        self.assertEqual(self.client.get('/gerente-geral/dashboard').status_code,403)
 
 
     def test_delivery_rechecks_scope_after_role_change(self):

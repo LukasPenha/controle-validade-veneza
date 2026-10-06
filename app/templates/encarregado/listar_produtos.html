@@ -8,8 +8,7 @@
 
 <div class="card shadow-sm">
     <div class="card-body">
-        <form action="{{ url_for('routes.bulk_action') }}" method="POST" id="bulkActionForm">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
             <div class="row mb-3 g-2">
                 <div class="col-md-6">
                     <div class="input-group">
@@ -26,7 +25,6 @@
                 <table class="table table-hover table-responsive-stack align-middle" id="productsTable">
                     <thead class="table-light">
                         <tr>
-                            <th width="5%"><input class="form-check-input" type="checkbox" id="selectAll"></th>
                             <th>Nome do Produto</th>
                             <th>Validade</th>
                             <th>Dias Rest.</th>
@@ -39,10 +37,6 @@
                         {% for produto in produtos.items %}
                         {% set dias_restantes = (produto.validade - now.date()).days %}
                         <tr class="{% if dias_restantes < 5 %}border-left-danger{% elif dias_restantes <= 10 %}border-left-warning{% elif dias_restantes > 19 %}border-left-success{% endif %}">
-                            
-                            <td data-label="Selecionar">
-                                <input class="form-check-input" type="checkbox" name="selected_ids" value="{{ produto.id }}">
-                            </td>
                             
                             <td data-label="Produto">
                                 <div class="fw-bold">{{ produto.nome_produto }}</div>
@@ -79,7 +73,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="7" class="text-center py-4 text-muted">
+                            <td colspan="6" class="text-center py-4 text-muted">
                                 <i class="bi bi-inbox fs-1 d-block mb-2"></i>
                                 Nenhum produto ativo cadastrado no seu setor.
                             </td>
@@ -88,7 +82,7 @@
                     </tbody>
                 </table>
             </div>
-        </form>
+        </div>
         
         {% if produtos.pages > 1 %}
         <nav aria-label="Paginação de produtos" class="mt-4">
@@ -160,7 +154,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function () {
     // Busca Rápida
     document.getElementById('searchInput').addEventListener('keyup', function() {
@@ -169,19 +163,11 @@ document.addEventListener('DOMContentLoaded', function () {
         let tr = table.getElementsByTagName('tr');
         for (let i = 1; i < tr.length; i++) {
             // Em mobile (cards), o layout muda, mas a lógica de busca pelo texto interno funciona
-            let td = tr[i].getElementsByTagName('td')[1]; 
+            let td = tr[i].getElementsByTagName('td')[0];
             if (td) {
                 let txtValue = td.textContent || td.innerText;
                 tr[i].style.display = txtValue.toUpperCase().indexOf(filter) > -1 ? "" : "none";
             }
-        }
-    });
-
-    // Select All
-    document.getElementById('selectAll').addEventListener('click', function(event) {
-        let checkboxes = document.querySelectorAll('#productsTable tbody input[type="checkbox"]');
-        for (let checkbox of checkboxes) {
-            checkbox.checked = event.target.checked;
         }
     });
 });

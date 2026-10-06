@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from .models import db, Produto, Usuario, Loja, Setor, agora_brasil, BRASIL, ROLES
 from sqlalchemy.exc import IntegrityError
-from .notifications import add_event, sync_expiry_notifications
+from .notifications import add_event, sync_product_notifications
 from datetime import datetime, date, time, timedelta
 from sqlalchemy import cast, Date, or_, func
 import io
@@ -11,6 +11,41 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import inch
 
 routes = Blueprint('routes', __name__)
+MAX_REPORT_DAYS = 366
+MAX_REPORT_ROWS = 3000
+
+
+def parse_period(data_inicio, data_fim):
+    try:
+        first, last = date.fromisoformat(data_inicio or ''), date.fromisoformat(data_fim or '')
+    except ValueError:
+        raise ValueError('Informe a data inicial e a final.') from None
+    if last < first:
+        raise ValueError('A data final deve ser igual ou posterior à inicial.')
+    if (last - first).days > MAX_REPORT_DAYS:
+        raise ValueError(f'O período máximo do relatório é de {MAX_REPORT_DAYS} dias.')
+    return datetime.combine(first, time.min, tzinfo=BRASIL), datetime.combine(last, time.max, tzinfo=BRASIL)
+
+
+def store_form(loja=None):
+    nome = (request.form.get('nome') or '').strip()
+    cnpj = (request.form.get('cnpj') or '').strip() or None
+    estado = (request.form.get('estado') or '').strip().upper() or None
+    if not nome or len(nome) > 100:
+        raise ValueError('Informe o nome da loja (até 100 caracteres).')
+    if (cnpj and len(cnpj) > 18) or (estado and len(estado) != 2):
+        raise ValueError('Confira o CNPJ e a sigla do estado (2 letras).')
+    duplicate = Loja.query.filter(func.lower(Loja.nome) == nome.lower()).first()
+    if duplicate and (not loja or duplicate.id != loja.id):
+        raise ValueError(f'Uma loja com o nome "{nome}" já existe.')
+    duplicate = cnpj and Loja.query.filter_by(cnpj=cnpj).first()
+    if duplicate and (not loja or duplicate.id != loja.id):
+        raise ValueError(f'Uma loja com o CNPJ "{cnpj}" já existe.')
+    loja = loja or Loja()
+    loja.nome, loja.cnpj, loja.estado = nome, cnpj, estado
+    loja.endereco = (request.form.get('endereco') or '').strip()[:255] or None
+    loja.cidade = (request.form.get('cidade') or '').strip()[:100] or None
+    return loja
 
 
 def user_form(user=None):
@@ -154,23 +189,14 @@ def relatorio_gerente_geral():
 def gerenciar_lojas():
     if current_user.role != 'gerente_geral': return redirect(url_for('routes.index'))
     if request.method == 'POST':
-        nome = request.form.get('nome')
-        cnpj = request.form.get('cnpj') or None
-        if Loja.query.filter(func.lower(Loja.nome) == func.lower(nome)).first():
-            flash(f'Uma loja com o nome "{nome}" já existe.', 'warning')
-        elif cnpj and Loja.query.filter_by(cnpj=cnpj).first():
-            flash(f'Uma loja com o CNPJ "{cnpj}" já existe.', 'warning')
-        else:
-            nova_loja = Loja(
-                nome=nome, 
-                cnpj=cnpj, 
-                endereco=request.form.get('endereco'), 
-                cidade=request.form.get('cidade'), 
-                estado=request.form.get('estado')
-            )
+        try:
+            nova_loja = store_form()
             db.session.add(nova_loja)
             db.session.commit()
-            flash(f'Loja "{nome}" criada com sucesso!', 'success')
+            flash(f'Loja "{nova_loja.nome}" criada com sucesso!', 'success')
+        except (ValueError, IntegrityError) as error:
+            db.session.rollback()
+            flash(str(error) if isinstance(error, ValueError) else 'Nome ou CNPJ já cadastrado.', 'warning')
         return redirect(url_for('routes.gerenciar_lojas'))
     lojas = Loja.query.order_by(Loja.nome).all()
     return render_template('geral/gerenciar_lojas.html', lojas=lojas)
@@ -179,10 +205,14 @@ def gerenciar_lojas():
 @login_required
 def editar_loja(loja_id):
     if current_user.role != 'gerente_geral': return redirect(url_for('routes.index'))
-    loja = Loja.query.get_or_404(loja_id)
-    loja.nome, loja.cnpj, loja.endereco, loja.cidade, loja.estado = request.form.get('nome'), request.form.get('cnpj') or None, request.form.get('endereco'), request.form.get('cidade'), request.form.get('estado')
-    db.session.commit()
-    flash('Dados da loja atualizados com sucesso!', 'success')
+    loja = db.get_or_404(Loja, loja_id)
+    try:
+        store_form(loja)
+        db.session.commit()
+        flash('Dados da loja atualizados com sucesso!', 'success')
+    except (ValueError, IntegrityError) as error:
+        db.session.rollback()
+        flash(str(error) if isinstance(error, ValueError) else 'Nome ou CNPJ já cadastrado.', 'warning')
     return redirect(url_for('routes.gerenciar_lojas'))
 
 @routes.route('/gerente-geral/loja/excluir/<int:loja_id>', methods=['POST'])
@@ -213,7 +243,7 @@ def gerenciar_usuarios_geral():
         return redirect(url_for('routes.gerenciar_usuarios_geral'))
 
     search_term = request.args.get('search_term', '').lower()
-    loja_id_filter = request.args.get('loja_id', '')
+    loja_id_filter = request.args.get('loja_id', type=int)
     query = Loja.query.order_by(Loja.nome)
     if loja_id_filter: query = query.filter(Loja.id == loja_id_filter)
     if search_term: query = query.join(Usuario).filter(func.lower(Usuario.username).contains(search_term))
@@ -297,12 +327,6 @@ def vencidos_encarregado():
     produtos_vencidos = Produto.query.filter(Produto.quantidade > 0, Produto.arquivado.is_(False), Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.validade < agora_brasil().date(), Produto.validade >= data_limite).order_by(Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('encarregado/produtos_vencidos.html', produtos=produtos_vencidos, today=agora_brasil().date())
 
-@routes.route('/auxiliar/dashboard')
-@login_required
-def dashboard_auxiliar():
-    if current_user.role != 'auxiliar_gestao': return redirect(url_for('routes.index'))
-    return redirect(url_for('routes.datas_curtas'))
-
 @routes.route('/gerente-trocas/dashboard')
 @login_required
 def dashboard_gerente_trocas():
@@ -327,12 +351,6 @@ def pagina_produtos_vencidos():
     produtos_vencidos = query.order_by(Produto.loja_id, Produto.validade.asc()).paginate(page=page, per_page=20)
     return render_template('geral/produtos_vencidos.html', produtos=produtos_vencidos, today=agora_brasil().date())
 
-@routes.route('/produtos/bulk-action', methods=['POST'])
-@login_required
-def bulk_action():
-    flash('Abra o produto para encerrar o acompanhamento e informar o motivo.', 'info')
-    return redirect(url_for('inventory.index'))
-
 @routes.route('/produtos/<int:produto_id>/editar', methods=['POST'])
 @login_required
 def editar_produto(produto_id):
@@ -353,7 +371,7 @@ def editar_produto(produto_id):
     produto.quantidade, produto.validade, produto.motivo_rebaixa = quantity, validity, reason
     db.session.commit()
     flash('Produto atualizado com sucesso!', 'success')
-    sync_expiry_notifications(user=current_user)
+    sync_product_notifications(produto)
     return redirect(url_for('routes.listar_produtos_encarregado'))
 
 @routes.route('/produtos/<int:produto_id>/status', methods=['POST'])
@@ -374,15 +392,6 @@ def alterar_status(produto_id):
     else: flash('Status inválido.', 'danger')
     return redirect(url_for('routes.index'))
 
-@routes.route('/produtos/<int:produto_id>/excluir', methods=['POST'])
-@login_required
-def excluir_produto(produto_id):
-    if current_user.role not in ['encarregado_setor', 'gerente_geral', 'gerente']: return redirect(url_for('routes.index'))
-    produto = Produto.query.get_or_404(produto_id)
-    if current_user.role == 'encarregado_setor' and (produto.loja_id != current_user.loja_id or produto.setor_id != current_user.setor_id): return redirect(url_for('routes.index'))
-    if current_user.role == 'gerente' and produto.loja_id != current_user.loja_id: return redirect(url_for('routes.index'))
-    return redirect(url_for('inventory.detail',item_id=produto.id))
-
 # --- ROTAS PARA DATAS CURTAS ---
 @routes.route('/datas-curtas')
 @login_required
@@ -399,13 +408,12 @@ def datas_curtas():
 def gerar_relatorio_encarregado_pdf():
     if current_user.role != 'encarregado_setor': return redirect(url_for('routes.index'))
     data_inicio_str, data_fim_str = request.args.get('data_inicio'), request.args.get('data_fim')
-    if not data_inicio_str or not data_fim_str:
-        flash('Datas são obrigatórias.', 'danger'); return redirect(url_for('routes.relatorio_encarregado'))
-    
-    start_datetime = datetime.combine(datetime.strptime(data_inicio_str, '%Y-%m-%d').date(), time.min, tzinfo=BRASIL)
-    end_datetime = datetime.combine(datetime.strptime(data_fim_str, '%Y-%m-%d').date(), time.max, tzinfo=BRASIL)
-    
-    produtos_db = Produto.query.join(Usuario).filter(Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.data_cadastro.between(start_datetime, end_datetime)).order_by(Produto.data_cadastro).all()
+    try:
+        start_datetime, end_datetime = parse_period(data_inicio_str, data_fim_str)
+    except ValueError as error:
+        flash(str(error), 'danger'); return redirect(url_for('routes.relatorio_encarregado'))
+
+    produtos_db = Produto.query.outerjoin(Usuario, Produto.criado_por_id == Usuario.id).filter(Produto.loja_id == current_user.loja_id, Produto.setor_id == current_user.setor_id, Produto.data_cadastro.between(start_datetime, end_datetime)).order_by(Produto.data_cadastro).all()
     
     # ATUALIZADO: Incluindo Qtd e PLU
     lista_simples = [{
@@ -428,13 +436,12 @@ def gerar_relatorio_encarregado_pdf():
 def gerar_relatorio_gerente_pdf():
     if current_user.role != 'gerente': return redirect(url_for('routes.index'))
     data_inicio_str, data_fim_str = request.args.get('data_inicio'), request.args.get('data_fim')
-    if not data_inicio_str or not data_fim_str:
-        flash('Datas são obrigatórias.', 'danger'); return redirect(url_for('routes.relatorio_gerente'))
-    
-    start_datetime = datetime.combine(datetime.strptime(data_inicio_str, '%Y-%m-%d').date(), time.min, tzinfo=BRASIL)
-    end_datetime = datetime.combine(datetime.strptime(data_fim_str, '%Y-%m-%d').date(), time.max, tzinfo=BRASIL)
-    
-    produtos_db = Produto.query.join(Usuario).filter(Produto.loja_id == current_user.loja_id, Produto.data_cadastro.between(start_datetime, end_datetime)).order_by(Produto.setor_id, Produto.data_cadastro).all()
+    try:
+        start_datetime, end_datetime = parse_period(data_inicio_str, data_fim_str)
+    except ValueError as error:
+        flash(str(error), 'danger'); return redirect(url_for('routes.relatorio_gerente'))
+
+    produtos_db = Produto.query.outerjoin(Usuario, Produto.criado_por_id == Usuario.id).filter(Produto.loja_id == current_user.loja_id, Produto.data_cadastro.between(start_datetime, end_datetime)).order_by(Produto.setor_id, Produto.data_cadastro).all()
     
     # ATUALIZADO: Incluindo Qtd e PLU
     lista_simples = [{
@@ -457,28 +464,37 @@ def gerar_relatorio_gerente_pdf():
 def gerar_relatorio_pdf():
     if current_user.role not in ['gerente_geral', 'gerente_trocas']: return redirect(url_for('routes.index'))
     data_inicio_str, data_fim_str = request.args.get('data_inicio'), request.args.get('data_fim')
-    loja_id = request.args.get('loja_id'); search_term = request.args.get('search_term')
-    
+    loja_id = request.args.get('loja_id'); search_term = (request.args.get('search_term') or '').strip()[:100]
+
     query = Produto.query
     subtitulo = ""; is_geral = current_user.role == 'gerente_geral'; titulo = "Relatório Geral de Produtos"
-    
+
+    if not search_term and not (data_inicio_str and data_fim_str):
+        flash('É necessário preencher um intervalo de datas ou um termo de busca.', 'danger'); return redirect(url_for('routes.index'))
+    if data_inicio_str or data_fim_str:
+        try:
+            start_datetime, end_datetime = parse_period(data_inicio_str, data_fim_str)
+        except ValueError as error:
+            flash(str(error), 'danger'); return redirect(url_for('routes.index'))
+        query = query.filter(Produto.data_cadastro.between(start_datetime, end_datetime))
+        subtitulo = f"Produtos cadastrados de {data_inicio_str} a {data_fim_str}"
     if search_term:
         query = query.filter(or_(Produto.nome_produto.ilike(f'%{search_term}%'),
                                  Produto.plu.ilike(f'%{search_term}%'), Produto.barcode == search_term))
-        subtitulo = f"Resultados da busca por '{search_term}'"
-    elif data_inicio_str and data_fim_str:
-        start_datetime = datetime.combine(datetime.strptime(data_inicio_str, '%Y-%m-%d').date(), time.min, tzinfo=BRASIL)
-        end_datetime = datetime.combine(datetime.strptime(data_fim_str, '%Y-%m-%d').date(), time.max, tzinfo=BRASIL)
-        query = query.filter(Produto.data_cadastro.between(start_datetime, end_datetime))
-        subtitulo = f"Produtos cadastrados de {data_inicio_str} a {data_fim_str}"
-    else:
-        flash('É necessário preencher um intervalo de datas ou um termo de busca.', 'danger'); return redirect(url_for('routes.index'))
-    
+        periodo = f" de {data_inicio_str} a {data_fim_str}" if subtitulo else ''
+        subtitulo = f"Resultados da busca por '{search_term}'{periodo}"
+
     if loja_id and loja_id != 'todas':
-        query = query.filter(Produto.loja_id == int(loja_id)); loja_obj = Loja.query.get(int(loja_id)); titulo = f"Relatório da Loja: {loja_obj.nome}"
-    
-    produtos_db = query.outerjoin(Usuario, Produto.criado_por_id == Usuario.id).join(Loja).order_by(Produto.loja_id, Produto.setor_id, Produto.data_cadastro).all()
-    
+        loja_obj = db.session.get(Loja, int(loja_id)) if loja_id.isdigit() else None
+        if not loja_obj:
+            flash('Loja não encontrada.', 'danger'); return redirect(url_for('routes.index'))
+        query = query.filter(Produto.loja_id == loja_obj.id); titulo = f"Relatório da Loja: {loja_obj.nome}"
+
+    produtos_db = query.outerjoin(Usuario, Produto.criado_por_id == Usuario.id).join(Loja, Produto.loja_id == Loja.id).order_by(Produto.loja_id, Produto.setor_id, Produto.data_cadastro).limit(MAX_REPORT_ROWS + 1).all()
+    if len(produtos_db) > MAX_REPORT_ROWS:
+        flash(f'O relatório passaria de {MAX_REPORT_ROWS} produtos. Informe um período menor ou refine a busca.', 'warning')
+        return redirect(url_for('routes.index'))
+
     # ATUALIZADO: Incluindo Qtd e PLU
     lista_simples = []
     for p in produtos_db:

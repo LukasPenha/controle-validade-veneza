@@ -78,3 +78,33 @@ class AccessTests(unittest.TestCase):
         self.use_role('auxiliar_gestao')
         response=self.client.get('/validades-proximas?loja_id=2')
         self.assertNotIn('Outra loja',response.text)
+
+
+class DenyByDefaultTests(unittest.TestCase):
+    setUp = fixtures.FeatureTests.setUp
+    tearDown = fixtures.FeatureTests.tearDown
+    login = fixtures.FeatureTests.login
+    use_role = AccessTests.use_role
+
+    def test_new_route_without_role_check_is_denied(self):
+        @self.app.route('/rota-nova-sem-checagem')
+        def rota_nova():
+            return 'aberta'
+        for role in ('gerente', 'encarregado_setor', 'auxiliar_gestao', 'gerente_trocas', 'gerente_geral'):
+            self.use_role(role)
+            self.assertEqual(self.client.get('/rota-nova-sem-checagem').status_code, 403, role)
+
+    def test_manager_and_sector_keep_their_pages(self):
+        hoje = agora_brasil().date().isoformat()
+        self.use_role('gerente')
+        for path in ['/gerente/para-rebaixa', '/gerente/em-rebaixa', '/gerente/relatorio', '/produtos/vencidos',
+                     '/produtos', '/produtos/1', '/historico', '/datas-curtas', '/notifications', '/perfil',
+                     '/validades-proximas', '/produtos/novo?manual=1', f'/gerente/relatorio/pdf?data_inicio={hoje}&data_fim={hoje}']:
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        self.assertEqual(self.client.get('/encarregado/produtos').status_code, 403)
+        self.use_role('encarregado_setor')
+        for path in ['/encarregado/produtos', '/encarregado/relatorio', '/encarregado/vencidos', '/produtos',
+                     '/produtos/1', '/historico', '/datas-curtas', '/notifications', '/perfil',
+                     '/validades-proximas', '/produtos/novo?manual=1', f'/encarregado/relatorio/pdf?data_inicio={hoje}&data_fim={hoje}']:
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+        self.assertEqual(self.client.get('/gerente/para-rebaixa').status_code, 403)

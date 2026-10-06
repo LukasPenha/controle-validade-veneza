@@ -43,5 +43,30 @@ def register_database_commands(app):
         """Executa alertas internos e e-mails; pode ser agendado externamente."""
         from .notifications import sync_expiry_notifications
         from .preferences import process_email_jobs
+        from .retention import purge_if_due
         sync_expiry_notifications()
         process_email_jobs(app)
+        purge_if_due()
+
+    @app.cli.command('purge-old-data')
+    def purge_old_data_command():
+        """Encerra avisos informativos antigos e apaga notificações, e-mails e tokens vencidos."""
+        from .retention import purge_old_data
+        for name, total in purge_old_data().items():
+            click.echo(f'{name}: {total}')
+
+    @app.cli.command('purge-photos')
+    @click.option('--dias', default=180, show_default=True, help='Idade mínima das fotos, em dias.')
+    @click.option('--confirmar', is_flag=True, help='Sem esta opção, só mostra quantas fotos seriam apagadas.')
+    def purge_photos(dias, confirmar):
+        """Apaga fotos de exposição de produtos encerrados, para liberar espaço no banco."""
+        from .retention import old_photos
+        if dias < 30:
+            raise click.ClickException('Use pelo menos 30 dias.')
+        total = old_photos(dias).count()
+        if not confirmar:
+            click.echo(f'{total} fotos seriam apagadas. Repita com --confirmar para apagar.')
+            return
+        old_photos(dias).delete(synchronize_session=False)
+        db.session.commit()
+        click.echo(f'{total} fotos apagadas.')

@@ -156,6 +156,9 @@ class JobState(db.Model):
     __tablename__ = 'job_state'
     name = db.Column(db.String(80), primary_key=True)
     last_success_at = db.Column(UTCDateTime())
+    # Carregadas só quando usadas: o resto do app segue funcionando se a migração atrasar.
+    last_error = db.deferred(db.Column(db.String(255)))
+    failures = db.deferred(db.Column(db.Integer, nullable=False, server_default='0'))
 
 
 class ExternalLookupCache(db.Model):
