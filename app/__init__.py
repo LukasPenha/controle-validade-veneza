@@ -85,6 +85,13 @@ def create_app(config=None):
     )
     if config:
         app.config.update(config)
+    # SQLAlchemy 2.1 usa psycopg 3 por padrão; o projeto instala psycopg2.
+    # Normalize depois dos overrides para cobrir produção e testes.
+    from sqlalchemy.engine import make_url
+    database_uri = make_url(app.config['SQLALCHEMY_DATABASE_URI'])
+    if database_uri.drivername in ('postgres', 'postgresql'):
+        database_uri = database_uri.set(drivername='postgresql+psycopg2')
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_uri
     secret = app.config.get('SECRET_KEY')
     if not secret or len(secret) < 32 or secret == 'chave-padrao-insegura':
         raise RuntimeError('Configure SECRET_KEY com uma chave aleatória de pelo menos 32 caracteres.')
