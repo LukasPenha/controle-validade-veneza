@@ -55,6 +55,26 @@ class SecurityTests(unittest.TestCase):
             response = self.client.post('/login', data={'csrf_token': token})
             self.assertEqual(response.status_code, 400)
 
+    def test_https_login_preserves_same_origin_referrer_and_csrf(self):
+        base = 'https://localhost'
+        response = self.client.get('/login', base_url=base)
+        html = response.get_data(as_text=True)
+        self.assertIn('name="referrer" content="same-origin"', html)
+        self.assertNotIn('content="no-referrer"', html)
+        token = re.search(r'name="csrf_token" value="([^"]+)"', html)[1]
+        data = {'username': 'gerente', 'password': 'senha-teste', 'csrf_token': token}
+        for headers in ({}, {'Referer': 'https://outside.example/login'}):
+            self.assertEqual(self.client.post('/login', base_url=base,
+                                             data=data, headers=headers).status_code, 400)
+        self.assertEqual(self.client.post('/login', base_url=base,
+            data={**data, 'csrf_token': 'invalid'},
+            headers={'Referer': base + '/login'}).status_code, 400)
+        response = self.client.post('/login', base_url=base, data=data,
+                                    headers={'Referer': base + '/login'})
+        self.assertEqual(response.status_code, 302)
+        with self.client.session_transaction() as session:
+            self.assertIn('_user_id', session)
+
     def test_login_and_logout_require_valid_post(self):
         self.assertEqual(self.login().status_code, 302)
         self.assertEqual(self.client.get('/logout').status_code, 405)

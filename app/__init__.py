@@ -185,7 +185,7 @@ def create_app(config=None):
         if current_user.is_authenticated or request.blueprint in ('auth', 'profile'):
             response.headers['Cache-Control'] = 'no-store'
         if request.endpoint in ('auth.reset_password', 'profile.verify'):
-            response.headers['Referrer-Policy'] = 'no-referrer'
+            response.headers['Referrer-Policy'] = 'same-origin'
         return response
 
     @app.context_processor
@@ -240,3 +240,4 @@ def create_app(config=None):
     # ------------------------------------------------
 
     return app
+
