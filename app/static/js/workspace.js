@@ -1,4 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[type="file"][data-max-bytes]').forEach(input => {
+        const validate = () => {
+            const limit = Number(input.dataset.maxBytes);
+            input.setCustomValidity(input.files[0]?.size > limit
+                ? `Escolha uma foto de até ${limit / (1024 * 1024)} MB.` : '');
+        };
+        input.addEventListener('change', validate);
+        validate();
+    });
     document.querySelectorAll('table').forEach(table => {
         if (!table.closest('.table-responsive')) {
             const wrapper = document.createElement('div');

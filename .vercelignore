@@ -1,0 +1,17 @@
+.git
+.venv
+venv
+.env
+.env.*
+backups
+instance
+tests
+__pycache__
+*.pyc
+*.dump
+*.gpg
+*.zip
+client_secret*.json
+token.json
+.codex
+.agents

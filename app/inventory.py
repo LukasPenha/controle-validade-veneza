@@ -3,7 +3,7 @@ import hashlib
 import io
 import warnings
 from datetime import timedelta
-from flask import Blueprint, abort, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.exc import IntegrityError
@@ -62,9 +62,10 @@ def upcoming():
 def normalize_photo(upload):
     if not upload:
         raise ValueError('Tire ou selecione uma foto para registrar a exposição.')
-    raw=upload.stream.read(MAX_UPLOAD+1)
-    if not raw or len(raw)>MAX_UPLOAD:
-        raise ValueError('Use uma foto de até 6 MB.')
+    limit = current_app.config.get('MAX_PHOTO_BYTES', MAX_UPLOAD)
+    raw=upload.stream.read(limit+1)
+    if not raw or len(raw)>limit:
+        raise ValueError(f'Use uma foto de até {limit // (1024 * 1024)} MB.')
     try:
         with warnings.catch_warnings():
             warnings.simplefilter('error',Image.DecompressionBombWarning)
